@@ -18,9 +18,12 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import RedirectView 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+
+    path('', RedirectView.as_view(url='/auth/login/', permanent=False), name='home'),
     
     # 先註冊自訂的 accounts URLs（更具體的路徑優先）
     path('accounts/', include('accounts.urls')),  # ← 你的自訂路由
