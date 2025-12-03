@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load currency %}
+
+{% block title %}<title>刪除收入記錄 - DB3C ERP</title>{% endblock %}
+
+{% block css %}
+<style>
+    .delete-container {
+        max-width: 700px;
+        margin: 50px auto;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .delete-header {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+    
+    .delete-header i {
+        font-size: 4rem;
+        margin-bottom: 15px;
+    }
+    
+    .delete-header h2 {
+        margin: 0;
+        font-size: 1.8rem;
+    }
+    
+    .delete-body {
+        padding: 40px;
+    }
+    
+    .warning-box {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 20px;
+        margin-bottom: 30px;
+        border-radius: 8px;
+    }
+    
+    .warning-box h4 {
+        color: #856404;
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+    }
+    
+    .warning-box p {
+        color: #856404;
+        margin: 0;
+        font-size: 0.95rem;
+    }
+    
+    .income-info {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .income-info-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .income-info-item:last-child {
+        border-bottom: none;
+    }
+    
+    .income-info-label {
+        font-weight: 600;
+        color: #6c757d;
+    }
+    
+    .income-info-value {
+        font-weight: 600;
+        color: #212529;
+    }
+    
+    .income-amount {
+        color: #28a745;
+        font-size: 1.3rem;
+    }
+    
+    .delete-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+    }
+    
+    .btn {
+        padding: 12px 30px;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        min-width: 140px;
+    }
+    
+    .btn-danger {
+        background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+        border: none;
+    }
+    
+    .btn-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        border: none;
+    }
+    
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <div class="delete-container">
+            <!-- 刪除標題 -->
+            <div class="delete-header">
+                <i class="fa fa-exclamation-triangle"></i>
+                <h2>確認刪除收入記錄</h2>
+            </div>
+            
+            <!-- 刪除內容 -->
+            <div class="delete-body">
+                <!-- 警告訊息 -->
+                <div class="warning-box">
+                    <h4><i class="fa fa-warning"></i> 重要提醒</h4>
+                    <p>刪除此收入記錄後將無法恢復，請確認是否繼續？</p>
+                </div>
+                
+                <!-- 收入資訊 -->
+                <div class="income-info">
+                    <div class="income-info-item">
+                        <span class="income-info-label">名稱：</span>
+                        <span class="income-info-value">{{ object.name }}</span>
+                    </div>
+                    <div class="income-info-item">
+                        <span class="income-info-label">日期：</span>
+                        <span class="income-info-value">
+                            {% if object.date %}
+                                {{ object.date|date:"Y-m-d" }}
+                            {% else %}
+                                無日期
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="income-info-item">
+                        <span class="income-info-label">收入金額：</span>
+                        <span class="income-info-value income-amount">+${{ object.amount|currency }}</span>
+                    </div>
+                    {% if object.remark %}
+                    <div class="income-info-item">
+                        <span class="income-info-label">備註：</span>
+                        <span class="income-info-value">{{ object.remark }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="income-info-item">
+                        <span class="income-info-label">建立時間：</span>
+                        <span class="income-info-value">{{ object.created_at|date:"Y-m-d H:i:s" }}</span>
+                    </div>
+                </div>
+                
+                <!-- 操作按鈕 -->
+                <div class="delete-actions">
+                    <a href="{% url 'business:income_list' %}" class="btn btn-secondary">
+                        <i class="fa fa-times"></i> 取消
+                    </a>
+                    <form method="post" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fa fa-trash"></i> 確認刪除
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

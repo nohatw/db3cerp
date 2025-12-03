@@ -1,0 +1,821 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}<title>{% if object %}編輯變體{% else %}新增變體{% endif %} - DB3C ERP</title>{% endblock %}
+
+{% block css %}
+<style>
+    .form-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .form-section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .price-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    @media (max-width: 768px) {
+        .price-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .info-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .type-badge {
+        padding: 6px 12px;
+        border-radius: 15px;
+        font-size: 12px;
+        font-weight: 600;
+        display: inline-block;
+        margin-right: 5px;
+    }
+    
+    .type-esim { background: #e3f2fd; color: #1976d2; }
+    .type-esimimg { background: #f3e5f5; color: #7b1fa2; }
+    .type-rechargeable { background: #fff3e0; color: #e65100; }
+    .type-physical { background: #e8f5e9; color: #2e7d32; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <!-- 頁面標題 -->
+        <div class="page-header d-print-none">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h2 class="page-title">
+                        <i class="ti ti-versions"></i>
+                        {% if object %}編輯產品變體{% else %}新增產品變體{% endif %}
+                    </h2>
+                    {% if object %}
+                    <div class="text-muted mt-1">
+                        <small>變體ID: #{{ object.id }} | 建立時間: {{ object.created_at|date:"Y-m-d H:i" }}</small>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-auto ms-auto">
+                    <a href="{% url 'products:variant_list' %}" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left"></i> 返回列表
+                    </a>
+                    {% if selected_product %}
+                    <a href="{% url 'products:product_detail' selected_product.id %}" class="btn btn-outline-primary">
+                        <i class="ti ti-box"></i> 返回產品
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 產品資訊提示卡片 -->
+        {% if selected_product %}
+        <div class="info-card">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="mb-1">
+                        <i class="ti ti-info-circle"></i> 正在為以下產品新增變體：
+                    </div>
+                    <h3 class="mb-0">{{ selected_product.name }}</h3>
+                    <small class="opacity-75">
+                        <i class="ti ti-category"></i> {{ selected_product.category.name }}
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 表單 -->
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row">
+                <!-- 左側欄位 -->
+                <div class="col-lg-8">
+                    <!-- 表單驗證錯誤 -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible">
+                        <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
+                        <h4 class="alert-title"><i class="ti ti-alert-circle"></i> 表單驗證錯誤</h4>
+                        <ul class="mb-0">
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                <li><strong>{{ field.label }}</strong>：{{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <!-- 基本資訊 -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="ti ti-file-text"></i> 基本資訊
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <!-- 所屬產品 -->
+                            <div class="mb-3">
+                                <label class="form-label required">所屬產品</label>
+                                {% if is_headquarter_admin %}
+                                <select class="form-select {% if form.product.errors %}is-invalid{% endif %}" 
+                                        name="product" 
+                                        required
+                                        {% if selected_product %}disabled{% endif %}>
+                                    <option value="">-- 請選擇產品 --</option>
+                                    {% for product in products %}
+                                    <option value="{{ product.id }}" 
+                                            {% if form.product.value == product.id or form.product.value|stringformat:"s" == product.id|stringformat:"s" or selected_product.id == product.id %}selected{% endif %}>
+                                        {{ product.name }} ({{ product.category.name }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% if selected_product %}
+                                <input type="hidden" name="product" value="{{ selected_product.id }}">
+                                {% endif %}
+                                {% if form.product.errors %}
+                                <div class="invalid-feedback">{{ form.product.errors.0 }}</div>
+                                {% else %}
+                                <small class="form-hint">此變體所屬的產品</small>
+                                {% endif %}
+                                {% else %}
+                                <div class="form-control-plaintext fw-bold">{{ object.product.name }} ({{ object.product.category.name }})</div>
+                                <input type="hidden" name="product" value="{{ object.product.id }}">
+                                {% endif %}
+                            </div>
+
+                            <!-- 變體名稱 -->
+                            <div class="mb-3">
+                                <label class="form-label required">變體名稱</label>
+                                {% if is_headquarter_admin %}
+                                <input type="text" 
+                                       class="form-control {% if form.name.errors %}is-invalid{% endif %}" 
+                                       name="name" 
+                                       value="{{ form.name.value|default:'' }}"
+                                       placeholder="例如：日本 7 天 10GB"
+                                       maxlength="200"
+                                       required>
+                                {% if form.name.errors %}
+                                <div class="invalid-feedback">{{ form.name.errors.0 }}</div>
+                                {% else %}
+                                <small class="form-hint">變體的顯示名稱，建議包含天數和流量資訊</small>
+                                {% endif %}
+                                {% else %}
+                                <div class="form-control-plaintext">{{ form.name.value }}</div>
+                                <input type="hidden" name="name" value="{{ form.name.value }}">
+                                {% endif %}
+                            </div>
+
+                            <!-- 變體描述 -->
+                            <div class="mb-3">
+                                <label class="form-label">變體描述</label>
+                                {% if is_headquarter_admin %}
+                                <textarea class="form-control {% if form.description.errors %}is-invalid{% endif %}" 
+                                          name="description" 
+                                          rows="4"
+                                          placeholder="輸入變體的詳細說明、使用注意事項等...">{{ form.description.value|default:'' }}</textarea>
+                                {% if form.description.errors %}
+                                <div class="invalid-feedback">{{ form.description.errors.0 }}</div>
+                                {% else %}
+                                <small class="form-hint">變體的詳細說明（選填）</small>
+                                {% endif %}
+                                {% else %}
+                                <div class="form-control-plaintext">{{ form.description.value|default:'-'|linebreaksbr }}</div>
+                                <input type="hidden" name="description" value="{{ form.description.value|default:'' }}">
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 產品規格 -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="ti ti-settings"></i> 產品規格
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- 產品類型 -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label required">產品類型</label>
+                                    {% if is_headquarter_admin %}
+                                    <select class="form-select {% if form.product_type.errors %}is-invalid{% endif %}" 
+                                            name="product_type" 
+                                            required
+                                            id="product-type-select">
+                                        <option value="">-- 請選擇 --</option>
+                                        {% for value, label in product_types %}
+                                        <option value="{{ value }}" 
+                                                {% if form.product_type.value == value %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if form.product_type.errors %}
+                                    <div class="invalid-feedback">{{ form.product_type.errors.0 }}</div>
+                                    {% else %}
+                                    <small class="form-hint">
+                                        <span class="type-badge type-esim">eSIM</span>
+                                        <span class="type-badge type-esimimg">圖庫eSIM</span>
+                                        <span class="type-badge type-rechargeable">充值卡</span>
+                                        <span class="type-badge type-physical">成品卡</span>
+                                    </small>
+                                    {% endif %}
+                                    {% else %}
+                                    <div class="form-control-plaintext">
+                                        <span class="type-badge type-{{ form.product_type.value|lower }}">{{ object.get_product_type_display }}</span>
+                                    </div>
+                                    <input type="hidden" name="product_type" value="{{ form.product_type.value }}">
+                                    {% endif %}
+                                </div>
+
+                                <!-- 狀態 -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label required">狀態</label>
+                                    {% if is_headquarter_admin %}
+                                    <select class="form-select {% if form.status.errors %}is-invalid{% endif %}" 
+                                            name="status" 
+                                            required>
+                                        {% for value, label in variant_statuses %}
+                                        <option value="{{ value }}" 
+                                                {% if form.status.value == value %}selected{% endif %}
+                                                {% if not form.status.value and value == 'ACTIVE' %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if form.status.errors %}
+                                    <div class="invalid-feedback">{{ form.status.errors.0 }}</div>
+                                    {% endif %}
+                                    {% else %}
+                                    <div class="form-control-plaintext">
+                                        {% if form.status.value == 'ACTIVE' %}
+                                        <span class="badge bg-success">上架</span>
+                                        {% elif form.status.value == 'INACTIVE' %}
+                                        <span class="badge bg-secondary">下架</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">封存</span>
+                                        {% endif %}
+                                    </div>
+                                    <input type="hidden" name="status" value="{{ form.status.value }}">
+                                    {% endif %}
+                                </div>
+
+                                <!-- 方案天數 -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label required">方案天數</label>
+                                    {% if is_headquarter_admin %}
+                                    <input type="text" 
+                                           class="form-control {% if form.days.errors %}is-invalid{% endif %}" 
+                                           name="days" 
+                                           value="{{ form.days.value|default:'' }}"
+                                           placeholder="例如：7 天、30 天"
+                                           maxlength="100"
+                                           required>
+                                    {% if form.days.errors %}
+                                    <div class="invalid-feedback">{{ form.days.errors.0 }}</div>
+                                    {% else %}
+                                    <small class="form-hint">使用期限，例如：1-3 天、7 天、30 天</small>
+                                    {% endif %}
+                                    {% else %}
+                                    <div class="form-control-plaintext">{{ form.days.value }}</div>
+                                    <input type="hidden" name="days" value="{{ form.days.value }}">
+                                    {% endif %}
+                                </div>
+
+                                <!-- 流量規格 -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label required">流量規格</label>
+                                    {% if is_headquarter_admin %}
+                                    <input type="text" 
+                                           class="form-control {% if form.data_amount.errors %}is-invalid{% endif %}" 
+                                           name="data_amount" 
+                                           value="{{ form.data_amount.value|default:'' }}"
+                                           placeholder="例如：10GB、Unlimited"
+                                           maxlength="50"
+                                           required>
+                                    {% if form.data_amount.errors %}
+                                    <div class="invalid-feedback">{{ form.data_amount.errors.0 }}</div>
+                                    {% else %}
+                                    <small class="form-hint">數據流量，例如：5GB、10GB、Unlimited（無限）</small>
+                                    {% endif %}
+                                    {% else %}
+                                    <div class="form-control-plaintext">{{ form.data_amount.value }}</div>
+                                    <input type="hidden" name="data_amount" value="{{ form.data_amount.value }}">
+                                    {% endif %}
+                                </div>
+
+                                <!-- 產品代碼 -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">產品代碼</label>
+                                    {% if is_headquarter_admin %}
+                                    <input type="text" 
+                                           class="form-control {% if form.product_code.errors %}is-invalid{% endif %}" 
+                                           name="product_code" 
+                                           value="{{ form.product_code.value|default:'' }}"
+                                           placeholder="例如：JP-7D-10GB"
+                                           maxlength="255">
+                                    {% if form.product_code.errors %}
+                                    <div class="invalid-feedback">{{ form.product_code.errors.0 }}</div>
+                                    {% else %}
+                                    <small class="form-hint">供應商或內部產品代碼（選填）</small>
+                                    {% endif %}
+                                    {% else %}
+                                    <div class="form-control-plaintext">{{ form.product_code.value|default:'-' }}</div>
+                                    <input type="hidden" name="product_code" value="{{ form.product_code.value|default:'' }}">
+                                    {% endif %}
+                                </div>
+
+                                <!-- SKU -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">SKU</label>
+                                    {% if is_headquarter_admin %}
+                                    <input type="text" 
+                                           class="form-control {% if form.sku.errors %}is-invalid{% endif %}" 
+                                           name="sku" 
+                                           value="{{ form.sku.value|default:'' }}"
+                                           placeholder="例如：JPESIM-001"
+                                           maxlength="255">
+                                    {% if form.sku.errors %}
+                                    <div class="invalid-feedback">{{ form.sku.errors.0 }}</div>
+                                    {% else %}
+                                    <small class="form-hint">庫存單位代碼，用於 ESIMIMG 圖片資料夾命名（選填）</small>
+                                    {% endif %}
+                                    {% else %}
+                                    <div class="form-control-plaintext">{{ form.sku.value|default:'-' }}</div>
+                                    <input type="hidden" name="sku" value="{{ form.sku.value|default:'' }}">
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 價格設定 -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="ti ti-currency-dollar"></i> 價格設定
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            {% if is_headquarter_admin %}
+                            <!-- 總公司管理員：可以編輯所有價格 -->
+                            <div class="price-grid">
+                                <!-- 一般價格（給 USER 用） -->
+                                <div class="mb-3">
+                                    <label class="form-label">一般價格 <span class="badge bg-secondary">USER</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">NT$</span>
+                                        <input type="number" 
+                                            class="form-control {% if form.price.errors %}is-invalid{% endif %}" 
+                                            name="price" 
+                                            value="{{ form.price.value|default:'' }}"
+                                            min="0"
+                                            step="1"
+                                            placeholder="0">
+                                    </div>
+                                    {% if form.price.errors %}
+                                    <div class="invalid-feedback">{{ form.price.errors.0 }}</div>
+                                    {% else %}
+                                    <small class="form-hint">給一般消費者的價格</small>
+                                    {% endif %}
+                                </div>
+
+                                <!-- 一般特價（給 USER 用） -->
+                                <div class="mb-3">
+                                    <label class="form-label">一般特價 <span class="badge bg-danger">USER</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">NT$</span>
+                                        <input type="number" 
+                                            class="form-control {% if form.price_sales.errors %}is-invalid{% endif %}" 
+                                            name="price_sales" 
+                                            value="{{ form.price_sales.value|default:'' }}"
+                                            min="0"
+                                            step="1"
+                                            placeholder="0">
+                                    </div>
+                                    {% if form.price_sales.errors %}
+                                    <div class="invalid-feedback">{{ form.price_sales.errors.0 }}</div>
+                                    {% else %}
+                                    <small class="form-hint text-danger">促銷價格（低於一般價格）</small>
+                                    {% endif %}
+                                </div>
+
+                                <!-- 代理商價格 -->
+                                <div class="mb-3">
+                                    <label class="form-label">代理商價格 <span class="badge bg-success">AGENT</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">NT$</span>
+                                        <input type="number" 
+                                            class="form-control {% if form.price_agent.errors %}is-invalid{% endif %}" 
+                                            name="price_agent" 
+                                            value="{{ form.price_agent.value|default:'' }}"
+                                            min="0"
+                                            step="1"
+                                            placeholder="0">
+                                    </div>
+                                    {% if form.price_agent.errors %}
+                                    <div class="invalid-feedback">{{ form.price_agent.errors.0 }}</div>
+                                    {% else %}
+                                    <small class="form-hint">給代理商拿貨的價格</small>
+                                    {% endif %}
+                                </div>
+
+                                <!-- 代理商特價 -->
+                                <div class="mb-3">
+                                    <label class="form-label">代理商特價 <span class="badge bg-success">AGENT</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">NT$</span>
+                                        <input type="number" 
+                                            class="form-control {% if form.price_sales_agent.errors %}is-invalid{% endif %}" 
+                                            name="price_sales_agent" 
+                                            value="{{ form.price_sales_agent.value|default:'' }}"
+                                            min="0"
+                                            step="1"
+                                            placeholder="0">
+                                    </div>
+                                    {% if form.price_sales_agent.errors %}
+                                    <div class="invalid-feedback">{{ form.price_sales_agent.errors.0 }}</div>
+                                    {% else %}
+                                    <small class="form-hint text-danger">代理商促銷價（低於代理商價格）</small>
+                                    {% endif %}
+                                </div>
+
+                                <!-- 同業價格 -->
+                                <div class="mb-3">
+                                    <label class="form-label">同業價格 <span class="badge bg-info">PEER</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">NT$</span>
+                                        <input type="number" 
+                                            class="form-control {% if form.price_peer.errors %}is-invalid{% endif %}" 
+                                            name="price_peer" 
+                                            value="{{ form.price_peer.value|default:'' }}"
+                                            min="0"
+                                            step="1"
+                                            placeholder="0">
+                                    </div>
+                                    {% if form.price_peer.errors %}
+                                    <div class="invalid-feedback">{{ form.price_peer.errors.0 }}</div>
+                                    {% else %}
+                                    <small class="form-hint">給同業夥伴的價格</small>
+                                    {% endif %}
+                                </div>
+
+                                <!-- 同業特價 -->
+                                <div class="mb-3">
+                                    <label class="form-label">同業特價 <span class="badge bg-info">PEER</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">NT$</span>
+                                        <input type="number" 
+                                            class="form-control {% if form.price_sales_peer.errors %}is-invalid{% endif %}" 
+                                            name="price_sales_peer" 
+                                            value="{{ form.price_sales_peer.value|default:'' }}"
+                                            min="0"
+                                            step="1"
+                                            placeholder="0">
+                                    </div>
+                                    {% if form.price_sales_peer.errors %}
+                                    <div class="invalid-feedback">{{ form.price_sales_peer.errors.0 }}</div>
+                                    {% else %}
+                                    <small class="form-hint text-danger">同業促銷價（低於同業價格）</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info mt-3">
+                                <i class="ti ti-info-circle"></i>
+                                <strong>價格層級說明：</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li><strong>一般價格 / 一般特價</strong>：給一般用戶（USER）和未登入訪客</li>
+                                    <li><strong>代理商價格 / 代理商特價</strong>：給代理商（AGENT）拿貨的價格</li>
+                                    <li><strong>經銷價格 / 經銷特價</strong>：由各代理商自行設定給自己下線經銷商（DISTRIBUTOR）的價格</li>
+                                    <li><strong>同業價格 / 同業特價</strong>：給同業夥伴（PEER）的價格</li>
+                                    <li>所有特價應低於正常價格，系統會優先顯示特價</li>
+                                </ul>
+                            </div>
+
+                            {% elif is_agent %}
+                            <!-- 代理商：顯示拿貨價格（唯讀）+ 可編輯經銷價格 -->
+                            
+                            <div class="alert alert-primary">
+                                <h4 class="alert-title"><i class="ti ti-info-circle"></i> 代理商價格管理</h4>
+                                <p class="mb-0">
+                                    您的拿貨價格由總公司設定（下方顯示），您可以設定專屬於您的 <strong>經銷價格</strong>，
+                                    供您的下線經銷商使用。不同代理商可以為同一個商品設定不同的經銷價格。
+                                </p>
+                            </div>
+
+                            <!-- 您的拿貨價格（唯讀） -->
+                            <div class="card bg-light mb-3">
+                                <div class="card-header">
+                                    <h4 class="card-title mb-0">
+                                        <i class="ti ti-shopping-cart"></i> 您的拿貨價格
+                                    </h4>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">拿貨價格</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">NT$</span>
+                                                <input type="text" 
+                                                    class="form-control fw-bold" 
+                                                    value="{{ form.price_agent.value|default:'未設定'|floatformat:0 }}"
+                                                    readonly>
+                                            </div>
+                                        </div>
+
+                                        {% if form.price_sales_agent.value %}
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">拿貨特價</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">NT$</span>
+                                                <input type="text" 
+                                                    class="form-control text-danger fw-bold" 
+                                                    value="{{ form.price_sales_agent.value|floatformat:0 }}"
+                                                    readonly>
+                                            </div>
+                                            <small class="form-hint text-danger">
+                                                <i class="ti ti-discount"></i> 特價優惠中！
+                                            </small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 設定經銷價格（可編輯） -->
+                            <div class="card border-primary mb-3">
+                                <div class="card-header bg-primary text-white">
+                                    <h4 class="card-title mb-0">
+                                        <i class="ti ti-users"></i> 設定經銷價格（給您的下線 DISTRIBUTOR）
+                                    </h4>
+                                </div>
+                                <div class="card-body">
+                                    {% if object %}
+                                    <!-- 只有在編輯模式下才顯示經銷價格表單 -->
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label required">
+                                                經銷價格 
+                                                <span class="badge bg-warning text-dark">DISTRIBUTOR</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">NT$</span>
+                                                {{ agent_pricing_form.price_distr }}
+                                            </div>
+                                            {% if agent_pricing_form.price_distr.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ agent_pricing_form.price_distr.errors.0 }}
+                                            </div>
+                                            {% else %}
+                                            <small class="form-hint">設定給您下線經銷商的拿貨價格</small>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">
+                                                經銷特價 
+                                                <span class="badge bg-warning text-dark">DISTRIBUTOR</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">NT$</span>
+                                                {{ agent_pricing_form.price_sales_distr }}
+                                            </div>
+                                            {% if agent_pricing_form.price_sales_distr.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ agent_pricing_form.price_sales_distr.errors.0 }}
+                                            </div>
+                                            {% else %}
+                                            <small class="form-hint text-danger">促銷價格（選填，低於經銷價格）</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="alert alert-warning">
+                                        <i class="ti ti-alert-triangle"></i>
+                                        <strong>注意：</strong>
+                                        <ul class="mb-0 mt-2">
+                                            <li>經銷價格建議高於您的拿貨價格，以保持利潤空間</li>
+                                            <li>經銷特價必須低於經銷價格</li>
+                                            <li>設定後，您的下線經銷商將看到這些價格</li>
+                                            <li>您可以隨時調整這些價格</li>
+                                        </ul>
+                                    </div>
+
+                                    {% if has_agent_pricing %}
+                                    <div class="alert alert-success">
+                                        <i class="ti ti-check-circle"></i>
+                                        您已經為此產品設定過經銷價格，修改後將會覆蓋原有設定。
+                                    </div>
+                                    {% else %}
+                                    <div class="alert alert-info">
+                                        <i class="ti ti-info-circle"></i>
+                                        這是第一次為此產品設定經銷價格，儲存後您的下線經銷商即可看到此價格。
+                                    </div>
+                                    {% endif %}
+
+                                    {% else %}
+                                    <!-- 新增模式：代理商無法在新增時設定經銷價格 -->
+                                    <div class="alert alert-warning">
+                                        <i class="ti ti-alert-triangle"></i>
+                                        請先建立產品變體，然後才能設定經銷價格。
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- 隱藏其他價格欄位，保持原值 -->
+                            <input type="hidden" name="product" value="{{ form.product.value }}">
+                            <input type="hidden" name="name" value="{{ form.name.value }}">
+                            <input type="hidden" name="description" value="{{ form.description.value }}">
+                            <input type="hidden" name="product_type" value="{{ form.product_type.value }}">
+                            <input type="hidden" name="status" value="{{ form.status.value }}">
+                            <input type="hidden" name="product_code" value="{{ form.product_code.value }}">
+                            <input type="hidden" name="sku" value="{{ form.sku.value }}">
+                            <input type="hidden" name="days" value="{{ form.days.value }}">
+                            <input type="hidden" name="data_amount" value="{{ form.data_amount.value }}">
+                            <input type="hidden" name="price" value="{{ form.price.value|default:'' }}">
+                            <input type="hidden" name="price_sales" value="{{ form.price_sales.value|default:'' }}">
+                            <input type="hidden" name="price_agent" value="{{ form.price_agent.value|default:'' }}">
+                            <input type="hidden" name="price_sales_agent" value="{{ form.price_sales_agent.value|default:'' }}">
+                            <input type="hidden" name="price_peer" value="{{ form.price_peer.value|default:'' }}">
+                            <input type="hidden" name="price_sales_peer" value="{{ form.price_sales_peer.value|default:'' }}">
+                            <input type="hidden" name="sort_order" value="{{ form.sort_order.value|default:0 }}">
+
+                            {% else %}
+                            <!-- 其他角色：僅查看 -->
+                            <div class="alert alert-warning">
+                                <h4 class="alert-title"><i class="ti ti-alert-triangle"></i> 權限限制</h4>
+                                <p class="mb-0">您沒有權限編輯產品價格。此頁面僅供查看。</p>
+                            </div>
+
+                            <!-- 顯示對應角色的價格（唯讀） -->
+                            {% if is_distributor %}
+                            <div class="mb-3">
+                                <label class="form-label">您的拿貨價格（由您的代理商設定）</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">NT$</span>
+                                    <input type="text" 
+                                        class="form-control" 
+                                        value="請聯繫您的代理商設定"
+                                        readonly>
+                                </div>
+                            </div>
+                            {% elif is_peer %}
+                            <div class="mb-3">
+                                <label class="form-label">同業價格</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">NT$</span>
+                                    <input type="text" 
+                                        class="form-control" 
+                                        value="{{ form.price_peer.value|default:'未設定'|floatformat:0 }}"
+                                        readonly>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="mb-3">
+                                <label class="form-label">一般價格</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">NT$</span>
+                                    <input type="text" 
+                                        class="form-control" 
+                                        value="{{ form.price.value|default:'未設定'|floatformat:0 }}"
+                                        readonly>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- 隱藏所有價格欄位 -->
+                            <input type="hidden" name="price" value="{{ form.price.value|default:'' }}">
+                            <input type="hidden" name="price_sales" value="{{ form.price_sales.value|default:'' }}">
+                            <input type="hidden" name="price_agent" value="{{ form.price_agent.value|default:'' }}">
+                            <input type="hidden" name="price_sales_agent" value="{{ form.price_sales_agent.value|default:'' }}">
+                            <input type="hidden" name="price_peer" value="{{ form.price_peer.value|default:'' }}">
+                            <input type="hidden" name="price_sales_peer" value="{{ form.price_sales_peer.value|default:'' }}">
+
+                            {% endif %}
+                        </div>
+                    </div>
+
+
+                </div>
+
+                <!-- 右側欄位 -->
+                <div class="col-lg-4">
+                    <!-- 其他設定 -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="ti ti-adjustments"></i> 其他設定
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <!-- 排序順序 -->
+                            <div class="mb-3">
+                                <label class="form-label">排序順序</label>
+                                {% if is_headquarter_admin %}
+                                <input type="number" 
+                                       class="form-control {% if form.sort_order.errors %}is-invalid{% endif %}" 
+                                       name="sort_order" 
+                                       value="{{ form.sort_order.value|default:0 }}"
+                                       min="0"
+                                       step="1">
+                                {% if form.sort_order.errors %}
+                                <div class="invalid-feedback">{{ form.sort_order.errors.0 }}</div>
+                                {% else %}
+                                <small class="form-hint">數字越小越靠前顯示，預設為 0</small>
+                                {% endif %}
+                                {% else %}
+                                <div class="form-control-plaintext">{{ form.sort_order.value }}</div>
+                                <input type="hidden" name="sort_order" value="{{ form.sort_order.value }}">
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 產品類型說明 -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="ti ti-help"></i> 產品類型說明
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <span class="type-badge type-esim mb-2">eSIM</span>
+                                <p class="text-muted small mb-0">API 自動發貨，需要設定 API 參數</p>
+                            </div>
+                            <div class="mb-3">
+                                <span class="type-badge type-esimimg mb-2">圖庫eSIM</span>
+                                <p class="text-muted small mb-0">圖片庫存，每張圖片一筆庫存記錄</p>
+                            </div>
+                            <div class="mb-3">
+                                <span class="type-badge type-rechargeable mb-2">充值卡</span>
+                                <p class="text-muted small mb-0">充值卡序號，需要錄入序號</p>
+                            </div>
+                            <div class="mb-0">
+                                <span class="type-badge type-physical mb-2">成品卡</span>
+                                <p class="text-muted small mb-0">實體成品卡，需要寄送</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 操作按鈕 -->
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="ti ti-device-floppy"></i>
+                                    {% if object %}更新變體{% else %}建立變體{% endif %}
+                                </button>
+                                <a href="{% if selected_product %}{% url 'products:product_detail' selected_product.id %}{% else %}{% url 'products:variant_list' %}{% endif %}" 
+                                   class="btn btn-outline-secondary">
+                                    <i class="ti ti-x"></i> 取消
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// 產品類型選擇時的視覺回饋
+document.getElementById('product-type-select').addEventListener('change', function() {
+    const value = this.value;
+    const badge = document.querySelector('.type-badge.type-' + value);
+    if (badge) {
+        badge.style.transform = 'scale(1.1)';
+        setTimeout(() => {
+            badge.style.transform = 'scale(1)';
+        }, 200);
+    }
+});
+</script>
+{% endblock %}

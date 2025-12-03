@@ -1,0 +1,620 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load currency %}
+
+{% block title %}<title>{{ report.user.fullname }} - 月報表詳情 - DB3C ERP</title>{% endblock %}
+
+{% block css %}
+<style>
+    .detail-card {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .detail-card h4 {
+        font-weight: 700;
+        color: #495057;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .metric-box {
+        text-align: center;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+    
+    .metric-box .label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 8px;
+    }
+    
+    .metric-box .value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #495057;
+    }
+    
+    .metric-box.revenue .value {
+        color: #198754;
+    }
+    
+    .growth-box {
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+    }
+    
+    .growth-box.positive {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        border-left: 4px solid #28a745;
+    }
+    
+    .growth-box.negative {
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        border-left: 4px solid #dc3545;
+    }
+    
+    .growth-box.neutral {
+        background: #e9ecef;
+        border-left: 4px solid #6c757d;
+    }
+    
+    .breakdown-item {
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 10px;
+    }
+    
+    .breakdown-item:hover {
+        background: #e9ecef;
+    }
+    
+    .progress-custom {
+        height: 8px;
+        border-radius: 4px;
+        background: #e9ecef;
+        margin-top: 8px;
+    }
+    
+    .progress-bar-custom {
+        height: 100%;
+        border-radius: 4px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s ease;
+    }
+    
+    .rank-display {
+        display: inline-flex;
+        align-items: center;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+        border-radius: 30px;
+        font-weight: 700;
+        font-size: 1.2rem;
+        color: #000;
+        box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+    }
+    
+    .daily-table {
+        width: 100%;
+        margin-top: 20px;
+    }
+    
+    .daily-table th {
+        background: #f8f9fa;
+        padding: 12px;
+        text-align: center;
+        font-weight: 600;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .daily-table td {
+        padding: 10px 12px;
+        text-align: center;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .daily-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .compare-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+    
+    .compare-card .title {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin-bottom: 10px;
+    }
+    
+    .compare-card .value {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    
+    .compare-card .growth {
+        font-size: 1.1rem;
+        margin-top: 8px;
+    }
+    
+    @media (max-width: 768px) {
+        .daily-table {
+            font-size: 0.85rem;
+        }
+        
+        .daily-table th,
+        .daily-table td {
+            padding: 8px 4px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <!-- 頁面標題 -->
+        <div class="page-header">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h2 class="page-title">
+                        <i class="fa fa-user"></i> {{ report.user.fullname }}
+                    </h2>
+                    <div class="text-muted">
+                        {{ report.report_year }}年{{ report.report_month }}月 月報表
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <a href="{% url 'reports:monthly_list' %}?year={{ report.report_year }}&month={{ report.report_month }}" 
+                       class="btn btn-secondary">
+                        <i class="fa fa-arrow-left"></i> 返回列表
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 月份導航 -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        {% if has_prev_report %}
+                        <a href="{% url 'reports:monthly_detail' prev_report_id %}" 
+                           class="btn btn-outline-primary">
+                            <i class="fa fa-chevron-left"></i> 上個月
+                        </a>
+                        {% else %}
+                        <button class="btn btn-outline-secondary" disabled>
+                            <i class="fa fa-chevron-left"></i> 上個月
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="col text-center">
+                        <strong>{{ report.report_year }}年{{ report.report_month }}月</strong>
+                    </div>
+                    <div class="col-auto">
+                        {% if has_next_report %}
+                        <a href="{% url 'reports:monthly_detail' next_report_id %}" 
+                           class="btn btn-outline-primary">
+                            下個月 <i class="fa fa-chevron-right"></i>
+                        </a>
+                        {% else %}
+                        <button class="btn btn-outline-secondary" disabled>
+                            下個月 <i class="fa fa-chevron-right"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 左側：核心指標與分析 -->
+            <div class="col-md-8">
+                <!-- 月度概況 -->
+                <div class="detail-card">
+                    <h4><i class="fa fa-bar-chart"></i> 月度概況</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="metric-box revenue">
+                                <div class="label">總收入</div>
+                                <div class="value">${{ report.total_revenue|currency }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-box">
+                                <div class="label">訂單數</div>
+                                <div class="value">{{ report.total_orders }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-box">
+                                <div class="label">銷售產品</div>
+                                <div class="value">{{ report.total_products_sold }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-box">
+                                <div class="label">活躍天數</div>
+                                <div class="value" style="color: #0d6efd;">{{ report.active_days }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <div class="metric-box">
+                                <div class="label">日均收入</div>
+                                <div class="value" style="font-size: 1.4rem;">
+                                    ${{ report.avg_daily_revenue|floatformat:0|currency }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="metric-box">
+                                <div class="label">平均訂單金額</div>
+                                <div class="value" style="font-size: 1.4rem;">
+                                    ${{ avg_order_amount|floatformat:0|currency }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="metric-box">
+                                <div class="label">日均訂單數</div>
+                                <div class="value" style="font-size: 1.4rem;">
+                                    {{ report.avg_daily_orders|floatformat:1 }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 增長分析 -->
+                <div class="detail-card">
+                    <h4><i class="fa fa-line-chart"></i> 增長分析</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="mb-3">環比（與上月比較）</h5>
+                            
+                            {% if prev_month_report %}
+                            <div class="growth-box {% if mom_revenue_change > 0 %}positive{% elif mom_revenue_change < 0 %}negative{% else %}neutral{% endif %}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <small>收入變化</small>
+                                        <div style="font-weight: 700; font-size: 1.2rem;">
+                                            {% if mom_revenue_change > 0 %}
+                                            <i class="fa fa-arrow-up"></i> +${{ mom_revenue_change|currency }}
+                                            {% elif mom_revenue_change < 0 %}
+                                            <i class="fa fa-arrow-down"></i> ${{ mom_revenue_change|currency }}
+                                            {% else %}
+                                            持平
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        {% if report.mom_revenue_growth %}
+                                        <div style="font-size: 1.5rem; font-weight: 700;">
+                                            {{ report.mom_revenue_growth|floatformat:1 }}%
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="growth-box {% if mom_orders_change > 0 %}positive{% elif mom_orders_change < 0 %}negative{% else %}neutral{% endif %}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <small>訂單變化</small>
+                                        <div style="font-weight: 700; font-size: 1.2rem;">
+                                            {% if mom_orders_change > 0 %}
+                                            <i class="fa fa-arrow-up"></i> +{{ mom_orders_change }} 筆
+                                            {% elif mom_orders_change < 0 %}
+                                            <i class="fa fa-arrow-down"></i> {{ mom_orders_change }} 筆
+                                            {% else %}
+                                            持平
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        {% if report.mom_order_growth %}
+                                        <div style="font-size: 1.5rem; font-weight: 700;">
+                                            {{ report.mom_order_growth|floatformat:1 }}%
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    上月：${{ prev_month_report.total_revenue|currency }} / {{ prev_month_report.total_orders }} 筆
+                                </small>
+                            </div>
+                            {% else %}
+                            <p class="text-muted">無上月數據</p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5 class="mb-3">同比（與去年同月比較）</h5>
+                            
+                            {% if prev_year_report %}
+                            <div class="growth-box {% if yoy_revenue_change > 0 %}positive{% elif yoy_revenue_change < 0 %}negative{% else %}neutral{% endif %}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <small>收入變化</small>
+                                        <div style="font-weight: 700; font-size: 1.2rem;">
+                                            {% if yoy_revenue_change > 0 %}
+                                            <i class="fa fa-arrow-up"></i> +${{ yoy_revenue_change|currency }}
+                                            {% elif yoy_revenue_change < 0 %}
+                                            <i class="fa fa-arrow-down"></i> ${{ yoy_revenue_change|currency }}
+                                            {% else %}
+                                            持平
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        {% if report.yoy_revenue_growth %}
+                                        <div style="font-size: 1.5rem; font-weight: 700;">
+                                            {{ report.yoy_revenue_growth|floatformat:1 }}%
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="growth-box {% if yoy_orders_change > 0 %}positive{% elif yoy_orders_change < 0 %}negative{% else %}neutral{% endif %}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <small>訂單變化</small>
+                                        <div style="font-weight: 700; font-size: 1.2rem;">
+                                            {% if yoy_orders_change > 0 %}
+                                            <i class="fa fa-arrow-up"></i> +{{ yoy_orders_change }} 筆
+                                            {% elif yoy_orders_change < 0 %}
+                                            <i class="fa fa-arrow-down"></i> {{ yoy_orders_change }} 筆
+                                            {% else %}
+                                            持平
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        {% if report.yoy_order_growth %}
+                                        <div style="font-size: 1.5rem; font-weight: 700;">
+                                            {{ report.yoy_order_growth|floatformat:1 }}%
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    去年同月：${{ prev_year_report.total_revenue|currency }} / {{ prev_year_report.total_orders }} 筆
+                                </small>
+                            </div>
+                            {% else %}
+                            <p class="text-muted">無去年同月數據</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 每日明細 -->
+                <div class="detail-card">
+                    <h4><i class="fa fa-calendar"></i> 每日明細（活躍天數：{{ report.active_days }} 天）</h4>
+                    
+                    {% if daily_details %}
+                    <div class="table-responsive">
+                        <table class="daily-table">
+                            <thead>
+                                <tr>
+                                    <th>日期</th>
+                                    <th>收入</th>
+                                    <th>訂單</th>
+                                    <th>產品</th>
+                                    <th>平均單價</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for day in daily_details %}
+                                <tr>
+                                    <td><strong>{{ day.date }}</strong></td>
+                                    <td style="color: #198754; font-weight: 600;">
+                                        ${{ day.revenue|currency }}
+                                    </td>
+                                    <td>{{ day.orders }}</td>
+                                    <td>{{ day.products }}</td>
+                                    <td>
+                                        {% if day.orders > 0 %}
+                                        ${% widthratio day.revenue day.orders 1 %}
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-3">無每日明細數據</p>
+                    {% endif %}
+                </div>
+
+                <!-- 產品類型分析 -->
+                <div class="detail-card">
+                    <h4><i class="fa fa-shopping-cart"></i> 產品類型分析</h4>
+                    
+                    {% for item in product_breakdown %}
+                    <div class="breakdown-item">
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong>{{ item.type }}</strong>
+                                <span style="color: #198754; font-weight: 700;">
+                                    ${{ item.revenue|currency }} ({{ item.percentage|floatformat:1 }}%)
+                                </span>
+                            </div>
+                            <small class="text-muted">數量：{{ item.quantity }} 件</small>
+                            <div class="progress-custom">
+                                <div class="progress-bar-custom" 
+                                     style="width: {{ item.percentage }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center py-3">無產品類型數據</p>
+                    {% endfor %}
+                </div>
+
+                <!-- 訂單來源分析 -->
+                <div class="detail-card">
+                    <h4><i class="fa fa-globe"></i> 訂單來源分析</h4>
+                    
+                    {% for item in order_source_breakdown %}
+                    <div class="breakdown-item">
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong>{{ item.source }}</strong>
+                                <span style="color: #198754; font-weight: 700;">
+                                    ${{ item.revenue|currency }} ({{ item.percentage|floatformat:1 }}%)
+                                </span>
+                            </div>
+                            <small class="text-muted">訂單：{{ item.orders }} 筆</small>
+                            <div class="progress-custom">
+                                <div class="progress-bar-custom" 
+                                     style="width: {{ item.percentage }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center py-3">無訂單來源數據</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 右側：用戶資訊與排名 -->
+            <div class="col-md-4">
+                <!-- 用戶資訊 -->
+                <div class="detail-card">
+                    <h4><i class="fa fa-user"></i> 用戶資訊</h4>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">姓名</small>
+                        <strong>{{ report.user.fullname }}</strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">帳號</small>
+                        <strong>{{ report.user.username }}</strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">角色</small>
+                        <span class="badge bg-primary">
+                            {{ report.user.get_role_display }}
+                        </span>
+                    </div>
+                    
+                    {% if report.user.company %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block">公司</small>
+                        <strong>{{ report.user.company }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- 排名資訊 -->
+                <div class="detail-card">
+                    <h4><i class="fa fa-trophy"></i> 排名資訊</h4>
+                    
+                    <div class="text-center mb-4">
+                        <small class="text-muted d-block mb-2">總排名</small>
+                        <div class="rank-display">
+                            <i class="fa fa-star me-2"></i>
+                            第 {{ overall_rank }} 名
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <small class="text-muted d-block mb-2">
+                            {{ report.user.get_role_display }} 排名
+                        </small>
+                        <div class="rank-display" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                            <i class="fa fa-users me-2"></i>
+                            第 {{ role_rank }} / {{ role_total_users }} 名
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 當月總覽 -->
+                {% if monthly_summary %}
+                <div class="detail-card">
+                    <h4><i class="fa fa-pie-chart"></i> 當月總覽</h4>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">全平台收入</small>
+                        <strong style="font-size: 1.2rem; color: #198754;">
+                            ${{ monthly_summary.total_revenue|currency }}
+                        </strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">市場佔有率</small>
+                        <strong style="font-size: 1.2rem;">
+                            {% widthratio report.total_revenue monthly_summary.total_revenue 100 %}%
+                        </strong>
+                        <div class="progress-custom mt-2">
+                            <div class="progress-bar-custom" 
+                                 style="width: {% widthratio report.total_revenue monthly_summary.total_revenue 100 %}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">總訂單數</small>
+                        <strong>{{ monthly_summary.total_orders }} 筆</strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">活躍用戶數</small>
+                        <strong>{{ monthly_summary.active_users_count }} 位</strong>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 快速連結 -->
+                <div class="detail-card">
+                    <h4><i class="fa fa-link"></i> 快速連結</h4>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'reports:monthly_dashboard' %}?year={{ report.report_year }}&month={{ report.report_month }}" 
+                           class="btn btn-outline-primary">
+                            <i class="fa fa-dashboard"></i> 月度儀表板
+                        </a>
+                        
+                        <a href="{% url 'reports:monthly_list' %}?year={{ report.report_year }}&month={{ report.report_month }}" 
+                           class="btn btn-outline-secondary">
+                            <i class="fa fa-list"></i> 月報表列表
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

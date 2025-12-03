@@ -1,0 +1,602 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}<title>{% if object %}編輯{% else %}新增{% endif %}收據 - DB3C ERP</title>{% endblock %}
+
+{% block css %}
+<style>
+    .form-container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+        padding: 40px;
+    }
+    
+    .form-section {
+        margin-bottom: 30px;
+        padding-bottom: 30px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .form-section:last-child {
+        border-bottom: none;
+    }
+    
+    .form-section-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #495057;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    /* 產品明細表格 */
+    .product-items-table {
+        width: 100%;
+        margin-top: 20px;
+    }
+    
+    .product-items-table th {
+        background: #f8f9fa;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+    }
+    
+    .product-items-table td {
+        padding: 10px;
+        vertical-align: middle;
+    }
+    
+    .product-item-row {
+        background: #fff;
+        transition: all 0.3s ease;
+    }
+    
+    .product-item-row:hover {
+        background: #f8f9fa;
+    }
+    
+    /* 總計區域 */
+    .total-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+    
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    
+    .total-amount {
+        color: #28a745;
+    }
+    
+    /* 按鈕樣式 */
+    .btn-add-item {
+        width: 100%;
+        padding: 12px;
+        margin-top: 15px;
+        border: 2px dashed #0d6efd;
+        background: #f8f9fa;
+        color: #0d6efd;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-add-item:hover {
+        background: #e7f3ff;
+        border-color: #0056b3;
+        color: #0056b3;
+    }
+    
+    .btn-remove-item {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+    
+    /* 表單控制元件 */
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        padding: 10px 15px;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    }
+    
+    /* 必填標記 */
+    .required-mark {
+        color: #dc3545;
+        margin-left: 3px;
+    }
+    
+    /* 幫助文字 */
+    .form-text {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <!-- 頁面標題 -->
+        <div class="page-header">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h2 class="page-title">
+                        <i class="ti ti-receipt-plus"></i> 
+                        {% if object %}編輯收據{% else %}新增收據{% endif %}
+                    </h2>
+                    <div class="text-muted">
+                        {% if object %}
+                            編輯收據編號：{{ object.receipt_number }}
+                        {% else %}
+                            手動建立收據記錄
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <a href="{% url 'business:receipt_list' %}" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left"></i> 返回列表
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 表單 -->
+        <div class="form-container">
+            <form method="post" id="receiptForm">
+                {% csrf_token %}
+                
+                <!-- 基本資訊 -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="ti ti-info-circle"></i> 基本資訊
+                    </div>
+                    
+                    <div class="row g-3">
+                        <!-- 收據抬頭 -->
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                收據抬頭 <span class="required-mark">*</span>
+                            </label>
+                            {{ form.receipt_to|add_class:"form-control" }}
+                            {% if form.receipt_to.errors %}
+                                <div class="text-danger mt-1">{{ form.receipt_to.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text">
+                                <i class="ti ti-info-circle"></i> 
+                                收據抬頭（個人或公司名稱）
+                            </div>
+                        </div>
+                        
+                        <!-- 統一編號 -->
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                統一編號
+                            </label>
+                            {{ form.taxid|add_class:"form-control" }}
+                            {% if form.taxid.errors %}
+                                <div class="text-danger mt-1">{{ form.taxid.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text">
+                                <i class="ti ti-info-circle"></i> 
+                                選填，如需三聯式發票請填寫
+                            </div>
+                        </div>
+                        
+                        <!-- 收據日期 -->
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                收據日期 <span class="required-mark">*</span>
+                            </label>
+                            {{ form.date|add_class:"form-control"|attr:"type:date" }}
+                            {% if form.date.errors %}
+                                <div class="text-danger mt-1">{{ form.date.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text">
+                                <i class="ti ti-calendar"></i> 
+                                收據開立日期
+                            </div>
+                        </div>
+                        
+                        <!-- 備註 -->
+                        <div class="col-12">
+                            <label class="form-label">
+                                備註
+                            </label>
+                            {{ form.remark }}
+                            {% if form.remark.errors %}
+                                <div class="text-danger mt-1">{{ form.remark.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text">
+                                <i class="ti ti-note"></i> 
+                                其他相關說明或備註
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 產品明細 -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="ti ti-list"></i> 產品明細
+                    </div>
+                    
+                    <table class="product-items-table table">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">序號</th>
+                                <th style="width: 35%;">產品名稱 <span class="required-mark">*</span></th>
+                                <th style="width: 20%;">產品代碼</th>
+                                <th style="width: 15%;">數量 <span class="required-mark">*</span></th>
+                                <th style="width: 15%;">單價 <span class="required-mark">*</span></th>
+                                <th style="width: 10%;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productItemsBody">
+                            <!-- ✅ 編輯模式：顯示現有的產品明細 -->
+                            {% if object and receipt_items %}
+                                {% for item in receipt_items %}
+                                <tr class="product-item-row">
+                                    <td class="text-center item-number">{{ forloop.counter }}</td>
+                                    <td>
+                                        <input type="text" name="product_name[]" class="form-control" 
+                                            placeholder="請輸入產品名稱" value="{{ item.product_name }}" required>
+                                    </td>
+                                    <td>
+                                        <input type="text" name="product_code[]" class="form-control" 
+                                            placeholder="選填" value="{{ item.product_code|default:'' }}">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="quantity[]" class="form-control quantity-input" 
+                                            placeholder="數量" min="1" value="{{ item.quantity }}" required 
+                                            oninput="calculateReceiptTotal()">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="unit_price[]" class="form-control price-input" 
+                                            placeholder="單價" min="0" step="1" value="{{ item.unit_price }}" required 
+                                            oninput="calculateReceiptTotal()">
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                onclick="removeReceiptItem(this)">
+                                            <i class="ti ti-trash"></i> 刪除
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <!-- 新增模式：顯示一行空白 -->
+                                <tr class="product-item-row">
+                                    <td class="text-center item-number">1</td>
+                                    <td>
+                                        <input type="text" name="product_name[]" class="form-control" 
+                                            placeholder="請輸入產品名稱" required>
+                                    </td>
+                                    <td>
+                                        <input type="text" name="product_code[]" class="form-control" 
+                                            placeholder="選填">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="quantity[]" class="form-control quantity-input" 
+                                            placeholder="數量" min="1" value="1" required 
+                                            oninput="calculateReceiptTotal()">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="unit_price[]" class="form-control price-input" 
+                                            placeholder="單價" min="0" step="1" required 
+                                            oninput="calculateReceiptTotal()">
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                onclick="removeReceiptItem(this)" disabled>
+                                            <i class="ti ti-trash"></i> 刪除
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    
+                    <!-- 新增按鈕 -->
+                    <button type="button" class="btn btn-add-item" onclick="addReceiptItem(); return false;">
+                        <i class="ti ti-plus"></i> 新增產品項目
+                    </button>
+                    
+                    <!-- 總計區域 -->
+                    <div class="total-section">
+                        <div class="total-row">
+                            <div>收據總計</div>
+                            <div class="total-amount" id="totalAmount">$0</div>
+                        </div>
+                        <div class="text-muted small mt-2">
+                            <i class="ti ti-info-circle"></i> 
+                            自動計算所有產品明細的總金額
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 表單錯誤訊息 -->
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    <h4><i class="ti ti-alert-triangle"></i> 表單錯誤</h4>
+                    <ul class="mb-0">
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                                <li>{{ field }}: {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <!-- 提交按鈕 -->
+                <div class="d-flex gap-2 justify-content-end">
+                    <a href="{% url 'business:receipt_list' %}" class="btn btn-outline-secondary">
+                        <i class="ti ti-x"></i> 取消
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-check"></i> 
+                        {% if object %}更新收據{% else %}建立收據{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scriptcontent2 %}
+<script>
+    console.log('🚀 收據表單 JavaScript 載入中...');
+
+    let receiptItemCount = {% if object and receipt_items %}{{ receipt_items.count }}{% else %}1{% endif %};
+
+    console.log('📊 初始項目數量：' + receiptItemCount);
+
+    // ✅ 新增項目（全域函數）
+    function addReceiptItem() {
+        console.log('🔥 addReceiptItem() 被呼叫');
+        
+        const tbody = document.getElementById('productItemsBody');
+        if (!tbody) {
+            console.error('❌ 找不到 productItemsBody');
+            alert('❌ 系統錯誤：找不到表格');
+            return false;
+        }
+        
+        receiptItemCount++;
+        console.log('✅ 找到 tbody，準備新增第 ' + receiptItemCount + ' 項');
+        
+        const row = document.createElement('tr');
+        row.className = 'product-item-row';
+        row.innerHTML = `
+            <td class="text-center item-number">${receiptItemCount}</td>
+            <td>
+                <input type="text" name="product_name[]" class="form-control" 
+                    placeholder="請輸入產品名稱" required>
+            </td>
+            <td>
+                <input type="text" name="product_code[]" class="form-control" 
+                    placeholder="選填">
+            </td>
+            <td>
+                <input type="number" name="quantity[]" class="form-control quantity-input" 
+                    placeholder="數量" min="1" value="1" required 
+                    oninput="calculateReceiptTotal()">
+            </td>
+            <td>
+                <input type="number" name="unit_price[]" class="form-control price-input" 
+                    placeholder="單價" min="0" step="1" required 
+                    oninput="calculateReceiptTotal()">
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger" 
+                        onclick="removeReceiptItem(this)">
+                    <i class="ti ti-trash"></i> 刪除
+                </button>
+            </td>
+        `;
+        
+        tbody.appendChild(row);
+        console.log('✅ 已新增行到 DOM');
+        
+        updateReceiptRowNumbers();
+        updateReceiptRemoveButtons();
+        calculateReceiptTotal();
+        
+        console.log('✅ 已新增第 ' + receiptItemCount + ' 項');
+        return false;
+    }
+
+    // ✅ 移除項目（全域函數）
+    function removeReceiptItem(button) {
+        console.log('🔥 removeReceiptItem() 被呼叫');
+        
+        const row = button.closest('tr');
+        if (!row) {
+            console.error('❌ 找不到行元素');
+            return false;
+        }
+        
+        // 檢查是否至少保留一行
+        const rows = document.querySelectorAll('.product-item-row');
+        if (rows.length <= 1) {
+            alert('⚠️ 至少需要保留一個產品項目');
+            console.warn('⚠️ 無法刪除：至少需要一個項目');
+            return false;
+        }
+        
+        row.remove();
+        console.log('✅ 已移除項目');
+        
+        updateReceiptRowNumbers();
+        updateReceiptRemoveButtons();
+        calculateReceiptTotal();
+        
+        console.log('✅ 剩餘 ' + document.querySelectorAll('.product-item-row').length + ' 項');
+        return false;
+    }
+
+    // 更新行號
+    function updateReceiptRowNumbers() {
+        const rows = document.querySelectorAll('.product-item-row');
+        console.log('📊 更新行號，共 ' + rows.length + ' 行');
+        
+        rows.forEach((row, index) => {
+            const cell = row.querySelector('.item-number');
+            if (cell) {
+                cell.textContent = index + 1;
+            }
+        });
+        
+        // 同步更新 receiptItemCount
+        receiptItemCount = rows.length;
+    }
+
+    // 更新刪除按鈕狀態
+    function updateReceiptRemoveButtons() {
+        const rows = document.querySelectorAll('.product-item-row');
+        const buttons = document.querySelectorAll('.product-item-row button[onclick*="removeReceiptItem"]');
+        
+        console.log('🔘 更新按鈕狀態，共 ' + buttons.length + ' 個按鈕');
+        
+        // 只有一行時禁用所有刪除按鈕
+        const shouldDisable = (rows.length <= 1);
+        buttons.forEach(btn => {
+            btn.disabled = shouldDisable;
+            if (shouldDisable) {
+                btn.classList.add('disabled');
+            } else {
+                btn.classList.remove('disabled');
+            }
+        });
+    }
+
+    // 計算總金額
+    function calculateReceiptTotal() {
+        let total = 0;
+        const rows = document.querySelectorAll('.product-item-row');
+        
+        rows.forEach(row => {
+            const qtyInput = row.querySelector('.quantity-input');
+            const priceInput = row.querySelector('.price-input');
+            
+            const qty = parseFloat(qtyInput?.value) || 0;
+            const price = parseFloat(priceInput?.value) || 0;
+            
+            total += qty * price;
+        });
+        
+        const totalElement = document.getElementById('totalAmount');
+        if (totalElement) {
+            totalElement.textContent = '$' + total.toLocaleString('zh-TW', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            });
+        }
+        
+        console.log('💰 總金額：$' + total);
+    }
+
+    // 表單提交驗證
+    function validateReceiptForm(e) {
+        const rows = document.querySelectorAll('.product-item-row');
+        
+        if (rows.length === 0) {
+            e.preventDefault();
+            alert('❌ 請至少新增一個產品項目');
+            return false;
+        }
+        
+        // 檢查必填欄位
+        let hasError = false;
+        let errorMessages = [];
+        
+        rows.forEach((row, index) => {
+            const nameInput = row.querySelector('input[name="product_name[]"]');
+            const quantityInput = row.querySelector('input[name="quantity[]"]');
+            const priceInput = row.querySelector('input[name="unit_price[]"]');
+            
+            const name = nameInput?.value.trim();
+            const quantity = quantityInput?.value;
+            const price = priceInput?.value;
+            
+            if (!name) {
+                hasError = true;
+                errorMessages.push(`第 ${index + 1} 項：缺少產品名稱`);
+            }
+            if (!quantity || quantity <= 0) {
+                hasError = true;
+                errorMessages.push(`第 ${index + 1} 項：數量必須大於 0`);
+            }
+            if (!price || price < 0) {
+                hasError = true;
+                errorMessages.push(`第 ${index + 1} 項：單價不能為負數`);
+            }
+        });
+        
+        if (hasError) {
+            e.preventDefault();
+            alert('❌ 表單驗證失敗：\n\n' + errorMessages.join('\n'));
+            console.error('❌ 表單驗證錯誤：', errorMessages);
+            return false;
+        }
+        
+        console.log('✅ 表單驗證通過');
+        return true;
+    }
+
+    // DOM 載入完成後執行
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('✅ DOM 載入完成，開始初始化');
+        
+        // 綁定表單提交事件
+        const form = document.getElementById('receiptForm');
+        if (form) {
+            form.addEventListener('submit', validateReceiptForm);
+            console.log('✅ 已綁定表單提交驗證');
+        } else {
+            console.error('❌ 找不到 receiptForm');
+        }
+        
+        // 初始化按鈕狀態和總金額
+        updateReceiptRemoveButtons();
+        calculateReceiptTotal();
+        
+        // 檢查元素
+        const addBtn = document.querySelector('.btn-add-item');
+        const tbody = document.getElementById('productItemsBody');
+        const rows = document.querySelectorAll('.product-item-row');
+        
+        console.log('🔍 元素檢查：');
+        console.log('  ✓ 新增按鈕:', addBtn ? '存在' : '不存在');
+        console.log('  ✓ 表格 tbody:', tbody ? '存在' : '不存在');
+        console.log('  ✓ 現有行數:', rows.length);
+        console.log('  ✓ 項目計數器:', receiptItemCount);
+        
+        // 測試按鈕點擊
+        if (addBtn) {
+            console.log('✅ 新增按鈕已準備就緒');
+        }
+        
+        console.log('🎉 收據表單初始化完成！');
+    });
+</script>
+{% endblock %}

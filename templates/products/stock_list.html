@@ -1,0 +1,706 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+{% load currency %}
+
+{% block title %}
+<title>庫存列表 - DB3C ERP</title>
+{% endblock %}
+
+{% block css %}
+<style>
+    .filter-section {
+        margin-bottom: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .filter-title {
+        font-weight: 600;
+        margin-bottom: 15px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #dee2e6;
+        color: #495057;
+    }
+    
+    .stats-row {
+        margin-bottom: 20px;
+    }
+    
+    .stats-card {
+        border-radius: 10px;
+        padding: 20px;
+        color: white;
+        height: 100%;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+    
+    .stats-card.total {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .stats-card.unused {
+        background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+    }
+    
+    .stats-card.used {
+        background: linear-gradient(135deg, #bdc3c7 0%, #95a5a6 100%);
+    }
+    
+    .stats-card .stats-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+    }
+    
+    .stats-card .stats-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 10px 0;
+    }
+    
+    .stats-card .stats-label {
+        font-size: 0.95rem;
+        opacity: 0.95;
+        font-weight: 500;
+    }
+    
+    .stock-table {
+        font-size: 0.9rem;
+    }
+    
+    .stock-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        border-bottom: 2px solid #dee2e6;
+        white-space: nowrap;
+    }
+    
+    .stock-table td {
+        vertical-align: middle;
+    }
+    
+    .badge-stock-type {
+        padding: 5px 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .badge-used {
+        background-color: #95a5a6;
+        color: white;
+    }
+    
+    .badge-unused {
+        background-color: #27ae60;
+        color: white;
+    }
+    
+    .badge-low-stock {
+        background-color: #e74c3c;
+        color: white;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
+    .stock-quantity {
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    .stock-quantity.low {
+        color: #e74c3c;
+    }
+    
+    .stock-quantity.medium {
+        color: #f39c12;
+    }
+    
+    .stock-quantity.high {
+        color: #27ae60;
+    }
+    
+    .stock-card {
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 15px;
+        border: 1px solid #e9ecef;
+    }
+    
+    .stock-card .card-header {
+        background-color: #f8f9fa;
+        padding: 12px 15px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .stock-card .card-body {
+        padding: 15px;
+    }
+    
+    .qr-preview {
+        max-width: 60px;
+        max-height: 60px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: transform 0.2s;
+    }
+    
+    .qr-preview:hover {
+        transform: scale(1.1);
+    }
+    
+    .expire-warning {
+        color: #e74c3c;
+        font-weight: 600;
+    }
+    
+    .expire-soon {
+        color: #f39c12;
+        font-weight: 600;
+    }
+    
+    @media (max-width: 767.98px) {
+        .stats-card .stats-value {
+            font-size: 1.5rem;
+        }
+        
+        .filter-section {
+            padding: 10px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <!-- 頁面標題 -->
+                    <div class="card-header pb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h3 class="mb-0">
+                                <i class="ti ti-box"></i> 庫存列表
+                            </h3>
+                            <div>
+                                <a href="{% url 'products:catalogue_list' %}" class="btn btn-sm btn-outline-secondary me-2">
+                                    <i class="ti ti-arrow-left"></i> 返回產品列表
+                                </a>
+                                {% if is_headquarter_admin %}
+                                <a href="{% url 'products:stock_create' %}" class="btn btn-sm btn-primary">
+                                    <i class="ti ti-plus"></i> 新增庫存
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body">
+                        <!-- 統計資訊卡片 -->
+                        <div class="row stats-row">
+                            <div class="col-md-4 col-sm-6 mb-3">
+                                <div class="stats-card total">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="flex-grow-1">
+                                            <div class="stats-label">總庫存項目</div>
+                                            <div class="stats-value">{{ total_count }}</div>
+                                            <div class="stats-label">所有庫存記錄</div>
+                                        </div>
+                                        <div class="stats-icon">
+                                            <i class="ti ti-box-multiple"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4 col-sm-6 mb-3">
+                                <div class="stats-card unused">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="flex-grow-1">
+                                            <div class="stats-label">可用庫存</div>
+                                            <div class="stats-value">{{ unused_count }}</div>
+                                            <div class="stats-label">未使用的庫存</div>
+                                        </div>
+                                        <div class="stats-icon">
+                                            <i class="ti ti-circle-check"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4 col-sm-12 mb-3">
+                                <div class="stats-card used">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="flex-grow-1">
+                                            <div class="stats-label">已使用庫存</div>
+                                            <div class="stats-value">{{ total_count|add:"-"|add:unused_count }}</div>
+                                            <div class="stats-label">已出貨/兌換</div>
+                                        </div>
+                                        <div class="stats-icon">
+                                            <i class="ti ti-package-export"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 篩選區塊 -->
+                        <div class="filter-section">
+                            <div class="filter-title">
+                                <i class="ti ti-filter"></i> 篩選條件
+                            </div>
+                            <form method="get" action="" id="filterForm">
+                                <div class="row g-3">
+                                    <!-- 搜尋關鍵字 -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">搜尋</label>
+                                        <input type="text" 
+                                               name="q" 
+                                               class="form-control" 
+                                               placeholder="庫存名稱、代碼、產品名稱、產品代碼" 
+                                               value="{{ search_query }}">
+                                    </div>
+                                    
+                                    <!-- 產品變體 -->
+                                    <div class="col-md-3">
+                                        <label class="form-label">產品變體</label>
+                                        <select name="variant" class="form-select">
+                                            <option value="">全部變體</option>
+                                            {% for variant in variants %}
+                                                <option value="{{ variant.id }}" 
+                                                        {% if selected_variant|stringformat:"s" == variant.id|stringformat:"s" %}selected{% endif %}>
+                                                    {{ variant.product.name }} - {{ variant.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- 產品類型 -->
+                                    <div class="col-md-3">
+                                        <label class="form-label">產品類型</label>
+                                        <select name="type" class="form-select">
+                                            <option value="">全部類型</option>
+                                            {% for value, label in product_types %}
+                                                <option value="{{ value }}" 
+                                                        {% if selected_type == value %}selected{% endif %}>
+                                                    {{ label }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- 使用狀態 -->
+                                    <div class="col-md-3">
+                                        <label class="form-label">使用狀態</label>
+                                        <select name="status" class="form-select">
+                                            <option value="">全部狀態</option>
+                                            <option value="unused" {% if selected_status == 'unused' %}selected{% endif %}>
+                                                未使用
+                                            </option>
+                                            <option value="used" {% if selected_status == 'used' %}selected{% endif %}>
+                                                已使用
+                                            </option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- 操作按鈕 -->
+                                    <div class="col-md-9 d-flex align-items-end">
+                                        <button type="submit" class="btn btn-primary me-2">
+                                            <i class="ti ti-search"></i> 搜尋
+                                        </button>
+                                        <a href="{% url 'products:stock_list' %}" class="btn btn-secondary">
+                                            <i class="ti ti-refresh"></i> 重置
+                                        </a>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Desktop Table View (在手機上隱藏) -->
+                        <div class="table-responsive d-none d-md-block">
+                            <table class="table table-bordered table-hover stock-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 5%;">ID</th>
+                                        <th style="width: 15%;">庫存名稱</th>
+                                        <th style="width: 20%;">關聯產品</th>
+                                        <th style="width: 10%;">產品類型</th>
+                                        <th style="width: 12%;">代碼</th>
+                                        <th style="width: 8%; text-align: center;">庫存數量</th>
+                                        <th style="width: 10%; text-align: center;">QR Code</th>
+                                        <th style="width: 10%;">過期時間</th>
+                                        <th style="width: 10%; text-align: center;">狀態</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stock in stocks %}
+                                    <tr>
+                                        <td class="text-center">
+                                            <strong>{{ stock.id }}</strong>
+                                        </td>
+                                        <td>
+                                            <strong>{{ stock.name }}</strong>
+                                            {% if stock.description %}
+                                            <br>
+                                            <small class="text-muted">{{ stock.description|truncatewords:10 }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if stock.product %}
+                                                <strong>{{ stock.product.product.name }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ stock.product.name }}</small>
+                                            {% else %}
+                                                <span class="text-danger">
+                                                    <i class="ti ti-alert-circle"></i> 已刪除的產品
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if stock.product %}
+                                                {% if stock.product.product_type == 'esim' %}
+                                                <span class="badge badge-stock-type bg-primary">
+                                                    <i class="ti ti-device-mobile"></i> eSIM
+                                                </span>
+                                                {% elif stock.product.product_type == 'esimimg' %}
+                                                <span class="badge badge-stock-type bg-info">
+                                                    <i class="ti ti-photo"></i> 圖庫eSIM
+                                                </span>
+                                                {% elif stock.product.product_type == 'rechargeable' %}
+                                                <span class="badge badge-stock-type bg-warning">
+                                                    <i class="ti ti-refresh"></i> 充值卡
+                                                </span>
+                                                {% elif stock.product.product_type == 'physical' %}
+                                                <span class="badge badge-stock-type bg-success">
+                                                    <i class="ti ti-credit-card"></i> 成品卡
+                                                </span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if stock.code %}
+                                                <code>{{ stock.code }}</code>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if stock.quantity <= 0 %}
+                                                <span class="stock-quantity low">{{ stock.quantity }}</span>
+                                                <br>
+                                                <span class="badge badge-low-stock">
+                                                    <i class="ti ti-alert-triangle"></i> 缺貨
+                                                </span>
+                                            {% elif stock.quantity <= 5 %}
+                                                <span class="stock-quantity medium">{{ stock.quantity }}</span>
+                                                <br>
+                                                <small class="text-warning">庫存低</small>
+                                            {% else %}
+                                                <span class="stock-quantity high">{{ stock.quantity }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if stock.qr_img %}
+                                                <img src="{{ stock.qr_img.url }}" 
+                                                     alt="QR Code" 
+                                                     class="qr-preview"
+                                                     data-bs-toggle="modal" 
+                                                     data-bs-target="#qrModal{{ stock.id }}">
+                                            {% else %}
+                                                <span class="text-muted">無</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if stock.expire_date %}
+                                                {% now "Y-m-d H:i:s" as current_time %}
+                                                {% if stock.expire_date|date:"Y-m-d H:i:s" < current_time %}
+                                                    <span class="expire-warning">
+                                                        <i class="ti ti-clock-exclamation"></i>
+                                                        {{ stock.expire_date|date:"Y-m-d" }}
+                                                        <br>
+                                                        <small>已過期</small>
+                                                    </span>
+                                                {% else %}
+                                                    <span class="expire-soon">
+                                                        <i class="ti ti-clock"></i>
+                                                        {{ stock.expire_date|date:"Y-m-d" }}
+                                                    </span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">無期限</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if stock.is_used %}
+                                                <span class="badge badge-used">
+                                                    <i class="ti ti-check"></i> 已使用
+                                                </span>
+                                                {% if stock.exchange_time %}
+                                                <br>
+                                                <small class="text-muted">
+                                                    {{ stock.exchange_time|date:"Y-m-d H:i" }}
+                                                </small>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge badge-unused">
+                                                    <i class="ti ti-circle-check"></i> 可用
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    
+                                    <!-- QR Code 模態框 -->
+                                    {% if stock.qr_img %}
+                                    <div class="modal fade" id="qrModal{{ stock.id }}" tabindex="-1">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">{{ stock.name }} - QR Code</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body text-center">
+                                                    <img src="{{ stock.qr_img.url }}" 
+                                                         alt="QR Code" 
+                                                         class="img-fluid"
+                                                         style="max-width: 400px;">
+                                                    {% if stock.code %}
+                                                    <div class="mt-3">
+                                                        <h6>代碼：</h6>
+                                                        <code style="font-size: 1.2rem;">{{ stock.code }}</code>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="9" class="text-center py-5">
+                                            <i class="ti ti-box-off" style="font-size: 48px; color: #adb5bd;"></i>
+                                            <p class="text-muted mt-3">沒有找到庫存記錄</p>
+                                            {% if search_query or selected_variant or selected_status or selected_type %}
+                                            <a href="{% url 'products:stock_list' %}" class="btn btn-sm btn-outline-secondary">
+                                                <i class="ti ti-refresh"></i> 清除篩選
+                                            </a>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Mobile Card View (在平板/桌面隱藏) -->
+                        <div class="d-md-none">
+                            {% for stock in stocks %}
+                            <div class="card stock-card">
+                                <div class="card-header">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <strong>{{ stock.name }}</strong>
+                                            <br>
+                                            <small class="text-muted">ID: {{ stock.id }}</small>
+                                        </div>
+                                        <div>
+                                            {% if stock.is_used %}
+                                                <span class="badge badge-used">已使用</span>
+                                            {% else %}
+                                                <span class="badge badge-unused">可用</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row mb-2">
+                                        <div class="col-6">
+                                            <small class="text-muted">關聯產品</small>
+                                        </div>
+                                        <div class="col-6 text-end">
+                                            {% if stock.product %}
+                                                <strong>{{ stock.product.product.name }}</strong>
+                                                <br>
+                                                <small>{{ stock.product.name }}</small>
+                                            {% else %}
+                                                <span class="text-danger">已刪除</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mb-2">
+                                        <div class="col-6">
+                                            <small class="text-muted">產品類型</small>
+                                        </div>
+                                        <div class="col-6 text-end">
+                                            {% if stock.product %}
+                                                {{ stock.product.get_product_type_display }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    {% if stock.code %}
+                                    <div class="row mb-2">
+                                        <div class="col-12">
+                                            <small class="text-muted">代碼</small>
+                                            <br>
+                                            <code>{{ stock.code }}</code>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="row mb-2">
+                                        <div class="col-6">
+                                            <small class="text-muted">庫存數量</small>
+                                        </div>
+                                        <div class="col-6 text-end">
+                                            {% if stock.quantity <= 0 %}
+                                                <span class="stock-quantity low">{{ stock.quantity }}</span>
+                                            {% elif stock.quantity <= 5 %}
+                                                <span class="stock-quantity medium">{{ stock.quantity }}</span>
+                                            {% else %}
+                                                <span class="stock-quantity high">{{ stock.quantity }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    {% if stock.expire_date %}
+                                    <div class="row mb-2">
+                                        <div class="col-6">
+                                            <small class="text-muted">過期時間</small>
+                                        </div>
+                                        <div class="col-6 text-end">
+                                            {{ stock.expire_date|date:"Y-m-d" }}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if stock.qr_img %}
+                                    <div class="row mt-3">
+                                        <div class="col-12 text-center">
+                                            <img src="{{ stock.qr_img.url }}" 
+                                                 alt="QR Code" 
+                                                 class="qr-preview"
+                                                 data-bs-toggle="modal" 
+                                                 data-bs-target="#qrModal{{ stock.id }}"
+                                                 style="max-width: 80px;">
+                                            <br>
+                                            <small class="text-muted">點擊放大</small>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="alert alert-info text-center">
+                                <i class="ti ti-box-off" style="font-size: 48px;"></i>
+                                <p class="mt-3">沒有找到庫存記錄</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- 分頁 -->
+                        {% if is_paginated %}
+                        <nav aria-label="Page navigation" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                <!-- 上一頁 -->
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if selected_variant %}variant={{ selected_variant }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_type %}type={{ selected_type }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                                            <i class="ti ti-chevron-left"></i> 上一頁
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">
+                                            <i class="ti ti-chevron-left"></i> 上一頁
+                                        </span>
+                                    </li>
+                                {% endif %}
+
+                                <!-- 頁碼 -->
+                                {% for num in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if selected_variant %}variant={{ selected_variant }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_type %}type={{ selected_type }}&{% endif %}page={{ num }}">{{ num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                <!-- 下一頁 -->
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if selected_variant %}variant={{ selected_variant }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_type %}type={{ selected_type }}&{% endif %}page={{ page_obj.next_page_number }}">
+                                            下一頁 <i class="ti ti-chevron-right"></i>
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">
+                                            下一頁 <i class="ti ti-chevron-right"></i>
+                                        </span>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scriptcontent %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 篩選表單自動提交
+        const variantSelect = document.querySelector('select[name="variant"]');
+        const statusSelect = document.querySelector('select[name="status"]');
+        const typeSelect = document.querySelector('select[name="type"]');
+        
+        if (variantSelect) {
+            variantSelect.addEventListener('change', function() {
+                document.getElementById('filterForm').submit();
+            });
+        }
+        
+        if (statusSelect) {
+            statusSelect.addEventListener('change', function() {
+                document.getElementById('filterForm').submit();
+            });
+        }
+        
+        if (typeSelect) {
+            typeSelect.addEventListener('change', function() {
+                document.getElementById('filterForm').submit();
+            });
+        }
+        
+        console.log('📦 庫存列表頁面載入完成');
+        console.log('總庫存數：{{ total_count }}');
+        console.log('可用庫存數：{{ unused_count }}');
+    });
+</script>
+{% endblock %}

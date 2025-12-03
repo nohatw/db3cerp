@@ -1,0 +1,317 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+{% load currency %}
+
+{% block title %}
+<title>收據 - {{ receipt.receipt_number }} - DB3C ERP</title>{% endblock %}
+
+{% block css %}
+<style>
+    body {
+        font-family: "PMingLiU", "MingLiU", serif; /* 使用細明體以符合傳統收據風格 */
+        background-color: #f0f0f0;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+    }
+    .receipt-container {
+        background-color: white;
+        width: 210mm; /* A4 寬度 */
+        padding: 10mm;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        position: relative;
+    }
+    /* 標題區 */
+    .header {
+        text-align: center;
+        position: relative;
+        margin-bottom: 10px;
+    }
+    .title {
+        font-size: 24px;
+        font-weight: bold;
+        letter-spacing: 2px;
+        margin-bottom: 5px;
+    }
+    .date-section {
+        position: absolute;
+        left: 0;
+        top: 40px;
+        font-size: 14px;
+    }
+    .receipt-no {
+        position: absolute;
+        right: 0;
+        top: 10px;
+        font-size: 14px;
+        color: #d00; /* 編號通常為紅字或黑字，此處設為紅色以突顯 */
+    }
+    
+    /* 買受人資訊區 */
+    .buyer-info {
+        width: 100%;
+        margin-bottom: 5px;
+        font-size: 16px;
+        line-height: 1.8;
+    }
+    .buyer-info span {
+        display: inline-block;
+        border-bottom: 1px solid #000;
+        min-width: 200px;
+    }
+
+    /* 主表格 */
+    table.main-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 5px;
+        border: 2px solid #000;
+    }
+    table.main-table th, table.main-table td {
+        border: 1px solid #000;
+        text-align: center;
+        padding: 5px;
+        font-size: 15px;
+    }
+    
+    /* 表格欄寬設定 */
+    .col-name { width: 35%; }
+    .col-batch { width: 10%; }
+    .col-qty { width: 8%; }
+    .col-price { width: 10%; }
+    .col-amount { width: 25%; } /* 金額欄位較寬以容納細項 */
+    .col-note { width: 12%; }
+
+    /* 金額細分欄位 (佰拾萬仟...) */
+    .currency-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        border-bottom: 1px solid #ccc;
+    }
+    .currency-header span {
+        flex: 1;
+        text-align: center;
+        border-left: 1px solid #ccc;
+    }
+    .currency-header span:first-child { border-left: none; }
+    
+    .currency-cells {
+        display: flex;
+        height: 25px;
+        justify-content: space-between;
+    }
+    .currency-cells div {
+        flex: 1;
+        border-left: 1px solid #ccc;
+        height: 100%;
+    }
+    .currency-cells div:first-child { border-left: none; }
+
+    /* 總計列 */
+    .total-row td {
+        border-top: 2px solid #000;
+    }
+    .total-text-left {
+        text-align: left !important;
+        padding-left: 10px !important;
+    }
+
+    /* 底部資訊區 */
+    .footer-section {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px;
+        align-items: flex-start;
+    }
+    .legal-text {
+        width: 60%;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+    
+    /* 公司印章框 */
+    .company-stamp-box {
+        width: 35%;
+        border: 2px solid #d00; /* 紅色框 */
+        color: #d00;
+        padding: 5px;
+        font-size: 14px;
+        position: relative;
+    }
+    .stamp-title {
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 5px;
+        border-bottom: 1px solid #d00;
+        padding-bottom: 2px;
+    }
+    .company-details {
+        line-height: 1.4;
+        font-size: 13px;
+    }
+    
+    /* 頁腳聯單標示 */
+    .bottom-label {
+        margin-top: 15px;
+        text-align: center;
+        font-size: 14px;
+    }
+
+    /* 印刷校對資訊 (非收據本體，僅作參考) */
+    .proof-info {
+        margin-top: 40px;
+        border-top: 1px dashed #999;
+        padding-top: 10px;
+        color: #666;
+        font-size: 12px;
+    }
+    .proof-info table {
+        border-collapse: collapse;
+        margin-top: 5px;
+    }
+    .proof-info th, .proof-info td {
+        border: 1px solid #999;
+        padding: 4px 8px;
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="receipt-container">
+        <div class="receipt-no">收據編號: HJ10009137A</div>
+
+        <div class="header">
+            <div class="title">國際電話卡收據(三聯式)</div>
+        </div>
+
+        <div class="date-section">
+            中華民國 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 年 &nbsp;&nbsp;&nbsp;&nbsp; 月 &nbsp;&nbsp;&nbsp;&nbsp; 日
+        </div>
+
+        <br><br>
+
+        <div class="buyer-info">
+            買受人: <span></span><br>
+            統一編號: <span></span><br>
+            地 &nbsp;&nbsp;&nbsp;&nbsp;址: <span></span>
+        </div>
+
+        <table class="main-table">
+            <thead>
+                <tr>
+                    <th class="col-name">品名 [cite: 13]</th>
+                    <th class="col-batch">批號 [cite: 14]</th>
+                    <th class="col-qty">數量 [cite: 15]</th>
+                    <th class="col-price">單價 [cite: 15]</th>
+                    <th class="col-amount">
+                        金額 [cite: 16]<br>
+                        <div class="currency-header">
+                            <span>仟</span><span>佰</span><span>拾</span><span>萬</span><span>仟</span><span>佰</span><span>拾</span><span>元</span>
+                        </div>
+                    </th>
+                    <th class="col-note">備註 [cite: 18]</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="height: 30px;">
+                    <td></td><td></td><td></td><td></td>
+                    <td style="padding:0;">
+                        <div class="currency-cells">
+                            <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr style="height: 30px;">
+                    <td></td><td></td><td></td><td></td>
+                    <td style="padding:0;">
+                        <div class="currency-cells">
+                            <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr style="height: 30px;">
+                    <td></td><td></td><td></td><td></td>
+                    <td style="padding:0;">
+                        <div class="currency-cells">
+                            <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr style="height: 30px;">
+                    <td></td><td></td><td></td><td></td>
+                    <td style="padding:0;">
+                        <div class="currency-cells">
+                            <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr style="height: 30px;">
+                    <td></td><td></td><td></td><td></td>
+                    <td style="padding:0;">
+                        <div class="currency-cells">
+                            <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+                
+                <tr class="total-row">
+                    <td colspan="4" class="total-text-left">
+                        總計新台幣 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 元整
+                        <br><span style="font-size: 12px;">(中文字大寫)</span>
+                    </td>
+                    <td style="padding:0;">
+                        <div class="currency-cells">
+                            <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="footer-section">
+            <div class="legal-text">
+                本收據依據財政部88年9月14日台財稅第881943611號函核准使用，由銷售人自行印製，不另開立統一發票。<br>
+                因國際電話卡適用零稅率，本收據不得做為申報扣抵銷項稅額之憑證。
+            </div>
+
+            <div class="company-stamp-box">
+                <div class="stamp-title">營業人蓋用統一發票專用章</div>
+                <div class="company-details">
+                    <strong>聯達通有限公司</strong> [cite: 24]<br>
+                    統一編號：47067184 [cite: 26]<br>
+                    負責人：張瑪莉<br>
+                    TEL：0970789713<br>
+                    新北市板橋區文化路二段297號2樓
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-label">
+            第一聯：(買受人收執聯)
+        </div>
+
+        <div class="proof-info">
+            <strong>印刷資訊 (Reference Only):</strong><br>
+            檔號: HJ 10609137A | 尺寸: 9.5" X 11/2"<br>
+            <table>
+                <tr>
+                    <td>核對完成後，敬請簽名回傳</td>
+                    <td>校對日期: 107.09.21</td>
+                    <td>校對次數: 1</td>
+                </tr>
+            </table>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

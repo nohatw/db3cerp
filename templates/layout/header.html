@@ -1,0 +1,106 @@
+{% load static %} 
+{% block css %}
+<!-- Plugins css start-->
+<style>
+    .cart-pulse {
+        animation: cartPulse 1.5s infinite;
+    }
+    
+    .cart-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .cart-badge {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #ff6b6b;
+        color: white;
+        border-radius: 50%;
+        min-width: 20px;
+        height: 20px;
+        padding: 2px 6px;
+        font-size: 11px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    @keyframes cartPulse {
+        0% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+        }
+        
+        70% {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+        }
+        
+        100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+        }
+    }
+</style>
+<!-- Plugins css Ends-->
+{% endblock %}
+<!-- Page Header Start-->
+<div class="page-main-header">
+    <div class="main-header-right row m-0 py-0">
+        <div class="main-header-left">
+            <div class="logo-wrapper">
+                <a href="">
+                    DB3CERP系統
+                    <!-- <img class="img-fluid" src="{% static 'assets/images/logo/logo.svg'%}" width="158" alt=""> -->
+                </a>
+            </div>
+            <div class="dark-logo-wrapper">
+                <a href="">
+                    DB3CERP系統
+                    <!-- <img class="img-fluid" src="{% static 'assets/images/logo/logo-white.svg'%}" width="158"alt=""> -->
+                </a>
+            </div>
+            <div class="toggle-sidebar"><i class="status_toggle middle" data-feather="align-center"
+                    id="sidebar-toggle"></i></div>
+        </div>
+        <div class="left-menu-header col">
+            <!-- <ul>
+                <li>
+                    <form class="form-inline search-form">
+                        <div class="search-bg"><i class="fa fa-search"></i>
+                            <input class="form-control-plaintext" placeholder="Search here.....">
+                        </div>
+                    </form><span class="d-sm-none mobile-search search-bg"><i class="fa fa-search"></i></span>
+                </li>
+            </ul> -->
+        </div>
+        <div class="nav-right col pull-right right-menu p-0 ">
+            <ul class="nav-menus">
+                <li>
+                    <a href="{% url 'business:cart_view' %}" 
+                       class="btn btn-danger {% if cart_count > 0 %}cart-pulse{% endif %} cart-btn" 
+                       type="button">
+                        <i class="fa fa-shopping-cart"></i>
+                        <span class="f-18">購物車</span>
+                        {% if cart_count > 0 %}
+                        <span class="cart-badge">{{ cart_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                <li><a class="text-dark" href="#!" onclick="toggleFullScreen()"><i data-feather="maximize"></i></a></li>
+                <li><div class="mode"><i class="fa fa-moon-o"></i></div></li>
+                <li class="onhover-dropdown p-0">
+                    <a href="{% url 'account_logout' %}" class="btn btn-primary-light"><i data-feather="log-out"></i>登出</a>
+                </li>
+            </ul>
+        </div>
+        <div class="d-lg-none mobile-toggle pull-right w-auto"><i data-feather="more-horizontal"></i></div>
+    </div>
+</div>
+<!-- Page Header Ends -->

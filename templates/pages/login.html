@@ -1,0 +1,54 @@
+{% extends "base_auth.html" %}
+{% block title %}
+<title>LOGIN 登入</title>
+{% endblock %}
+{% block css %}
+{% endblock css %}
+
+{% block authentication %}
+<!-- page-wrapper Start-->
+<section>
+    <div class="container-fluid p-0">
+        <div class="row">
+            <div class="col-12">
+                <div class="login-card">
+                    <form class="theme-form login-form" method="post">
+                        {% csrf_token %}
+                        <h4>華生聯合診所醫療管理系統</h4>
+                        <h6>Welcome back! Log in to your account.</h6>
+                        <div class="form-group">
+                            <label>請輸入帳號</label>
+                            <div class="input-group"><span class="input-group-text"><i
+                                    class="icon-email"></i></span>
+                                <input class="form-control" type="text" required name="username"
+                                       placeholder="請輸入帳號">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>請輸入密碼</label>
+                            <div class="input-group"><span class="input-group-text"><i class="icon-lock"></i></span>
+                                <input class="form-control" type="password" name="password" required
+                                       placeholder="*********">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            {% if error %}
+                                <div class="alert alert-danger" role="alert">
+                                    {{ error }}
+                                </div>
+                            {% endif %}
+                            <button class="btn btn-primary btn-block" type="submit">登錄</button>
+
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %} 
+
+{% block scriptcontent %}
+{% endblock %}

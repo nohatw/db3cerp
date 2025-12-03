@@ -1,0 +1,106 @@
+{% load static %}
+<!-- Page Sidebar Start-->
+<header class="main-nav">
+    <div class="sidebar-user text-center">
+        <a href="">
+            <h6 class="mt-2 f-18 f-w-600 ">{{ user.fullname|default:user.username }} {{ user.username }}</h6>
+        </a>
+    </div>
+    <nav>
+        <div class="main-navbar">
+            <div class="left-arrow" id="left-arrow"><i data-feather="arrow-left"></i></div>
+            <div id="mainnav">
+                <ul class="nav-menu custom-scrollbar">
+                    <li class="back-btn">
+                        <div class="mobile-back text-end"><span>Back</span><i class="fa fa-angle-right ps-2" aria-hidden="true"></i></div>
+                    </li>
+                    <!-- <li class="sidebar-main-title"><a class="nav-link menu-title" href="{% url 'products:catalogue_agents' %}">
+                        <i data-feather="box"></i><span>產品目錄</span></a>
+                    </li> -->
+                    
+                    
+                    <li class="sidebar-main-title">
+                        <div>
+                            <h6>購物</h6>
+                        </div>
+                    </li>
+                    <li class="dropdown"><a class="nav-link menu-title" href="{% url 'products:catalogue_agents' %}">
+                        <i data-feather="box"></i><span>產品目錄</span></a>
+                    </li> 
+                    <li class="dropdown"><a class="nav-link menu-title" href="{% url 'business:order_list' %}">
+                        <i data-feather="clipboard"></i><span>訂單</span></a>
+                    </li>
+                    <li class="dropdown"><a class="nav-link menu-title" href="{% url 'business:receipt_list' %}">
+                        <i data-feather="box"></i><span>收據</span></a>
+                    </li>
+                    
+                    
+                    <li class="dropdown"><a class="nav-link menu-title" href="javascript:void(0)">
+                        <i data-feather="bar-chart"></i><span>統計</span></a>
+                        <ul class="nav-submenu menu-content">
+                            <li><a href="{% url 'reports:daily_list' %}">日報表</a></li>
+                            <li><a href="{% url 'reports:monthly_list' %}">月報表</a></li>
+                            <!-- <li><a href="">年報表</a></li>
+                            <li><a href="">支出報表</a></li>
+                            <li><a href="">收入報表</a></li>
+                            <li><a href="">客戶報表</a></li>
+                            <li><a href="">庫存報表</a></li> -->
+                        </ul>
+                    </li>
+
+                    <!-- 所有員工都可看到的部分 -->
+                    <li class="sidebar-main-title">
+                        <div>
+                            <h6>管理</h6>
+                        </div>
+                    </li>
+                    {% if is_headquarter_admin or is_agent %}
+                    <li class="dropdown"><a class="nav-link menu-title" href="javascript:void(0)">
+                        <i data-feather="package"></i><span>產品</span></a>
+                        <ul class="nav-submenu menu-content">
+                            <li><a href="{% url 'products:variant_list' %}">產品變體</a></li>
+                            {% if is_headquarter_admin %}
+                            <li><a href="{% url 'products:product_list' %}">產品列表</a></li>
+                            <li><a href="{% url 'products:category_list' %}">產品分類</a></li>
+                            <li><a href="{% url 'products:supplier_list' %}">供應商</a></li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    {% endif %}
+                    {% if is_headquarter_admin %}
+                    <li class="dropdown"><a class="nav-link menu-title" href="{% url 'products:stock_list' %}">
+                        <i data-feather="package"></i><span>庫存</span></a>
+                    </li>
+                    <li class="dropdown"><a class="nav-link menu-title" href="{% url 'business:expense_list' %}">
+                        <i data-feather="minus-circle"></i><span>支出</span></a>
+                    </li>
+                    <li class="dropdown"><a class="nav-link menu-title" href="{% url 'business:income_list' %}">
+                        <i data-feather="plus-circle"></i><span>收入</span></a>
+                    </li>
+                    {% endif %}
+                    <li class="dropdown"><a class="nav-link menu-title" href="{% url 'accounts:account_list' %}">
+                        <i data-feather="users"></i><span>使用者</span></a>
+                    </li>
+                    
+                    <li class="dropdown"><a class="nav-link menu-title" href="{% url 'business:topup_list' %}">
+                        <i data-feather="dollar-sign"></i><span>儲值/消費紀錄</span></a>
+                    </li>
+                   
+                    <li class="sidebar-main-title">
+                        <div>
+                            <h6>設定</h6>
+                        </div>
+                    </li>
+                    
+                    <li class="dropdown"><a class="nav-link menu-title" href="">
+                        <i data-feather="user"></i><span>暫定</span></a>
+                    </li>
+ 
+                    <br /><br />
+                </ul>
+            </div>
+            <div class="right-arrow" id="right-arrow"><i data-feather="arrow-right"></i></div>
+        </div>
+    </nav>
+</header>
+<!-- Page Sidebar Ends-->

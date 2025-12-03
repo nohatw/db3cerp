@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>國際電話卡收據（三聯式）</title>
+<style>
+    body {
+        font-family: "標楷體", "KaiTi", "DFKai-SB", serif;
+        margin: 0;
+        padding: 20px;
+        background: #f5f5f5;
+        color: #000;
+    }
+    .receipt {
+        width: 800px;
+        margin: 0 auto;
+        background: #fff;
+        border: 2px solid #000;
+        padding: 20px;
+        box-sizing: border-box;
+        position: relative;
+    }
+    .header {
+        text-align: center;
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        letter-spacing: 8px;
+    }
+    .sub-header {
+        text-align: center;
+        font-size: 20px;
+        margin-bottom: 20px;
+    }
+    .info-line {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 18px;
+    }
+    .info-line .label { width: 80px; }
+    .serial-no {
+        position: absolute;
+        top: 60px;
+        right: 30px;
+        font-size: 16px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 18px;
+    }
+    th, td {
+        border: 1px solid #000;
+        padding: 10px;
+        text-align: center;
+    }
+    th {
+        background: #f0f0f0;
+        font-weight: normal;
+    }
+    .amount-row td {
+        border-top: 2px solid #000;
+        font-weight: bold;
+    }
+    .total-chinese {
+        text-align: right;
+        font-size: 20px;
+        margin: 20px 0;
+        font-weight: bold;
+    }
+    .footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        font-size: 18px;
+        margin-top: 30px;
+    }
+    .company-info {
+        line-height: 1.8;
+    }
+    .stamp-area {
+        text-align: center;
+        width: 220px;
+    }
+    .stamp-box {
+        border: 2px dashed #000;
+        padding: 20px 10px;
+        margin-bottom: 10px;
+        font-size: 20px;
+    }
+    .remark {
+        font-size: 16px;
+        line-height: 1.6;
+        margin-top: 20px;
+    }
+    .page-break {
+        page-break-after: always;
+    }
+    /* 列印用：三聯每聯一頁 */
+    @media print {
+        body { padding: 0; background: white; }
+        .receipt { border: none; page-break-after: always; }
+    }
+</style>
+</head>
+<body>
+
+<div class="receipt">
+    <div class="header">國際電話卡收據（三聯式）</div>
+    <div class="sub-header">中華民國 {{ year }} 年 {{ month }} 月 {{ day }} 日</div>
+
+    <div class="info-line">
+        <span class="label">買受人：</span>
+        <span>{{ buyer_name }}</span>
+        <span class="label" style="margin-left:60px;">統一編號：</span>
+        <span>{{ tax_id }}</span>
+    </div>
+    <div class="info-line">
+        <span class="label">地　　址：</span>
+        <span>{{ address }}</span>
+    </div>
+
+    <div class="serial-no">收據編號：{{ receipt_no }}</div>
+
+    <table>
+        <thead>
+            <tr>
+                <th width="25%">品　　名</th>
+                <th width="15%">批　　號</th>
+                <th width="10%">數　　量</th>
+                <th width="15%">單　　價</th>
+                <th width="15%">金　　額</th>
+                <th width="20%">備　　註</th>
+            </tr>
+        </thead>
+        <tbody id="item-rows">
+            <!-- Django 會用 for loop 動態產生以下這段 -->
+            {% for item in items %}
+            <tr>
+                <td>{{ item.name }}</td>
+                <td>{{ item.batch_no }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.unit_price }}</td>
+                <td>{{ item.amount }}</td>
+                <td>{{ item.note }}</td>
+            </tr>
+            {% endfor %}
+            <!-- 如果資料少，可以加空白行讓表格好看 -->
+            {% for i in "1234" %}
+            <tr>
+                <td>　</td><td>　</td><td>　</td><td>　</td><td>　</td><td>　</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="amount-row">
+                <td colspan="4" style="text-align:right; padding-right:20px;">總　計</td>
+                <td colspan="2">{{ total_amount }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="total-chinese">
+        總計新台幣：{{ total_chinese }} 整
+    </div>
+
+    <div class="footer">
+        <div class="company-info">
+            總計新台幣<br>
+            (中文大寫)<br><br>
+            本收據依據財政部88年9月14日台財稅第881943611號函核准使用，由銷售人自行印製，不另開立統一發票。<br>
+            國際電話卡適用零稅率，本收據不得做為申報扣抵銷項稅額之憑證。
+        </div>
+
+        <div class="stamp-area">
+            <div class="stamp-box">
+                聯 達 通 有 限 公 司<br>
+                統一編號 47067184<br>
+                負責人：張  碩  莉<br>
+                TEL：0979-789713<br>
+                台北市○○區○○路○○號
+            </div>
+            第一聯：(買受人收執聯)
+        </div>
+    </div>
+
+    <div class="remark">
+        營業人蓋用統一發票專用章
+    </div>
+</div>
+
+<!-- 如果你要列印三聯，可以再複製上面整個 .receipt 兩次，改成「第二聯」「第三聯」即可 -->
+<!-- <div class="receipt page-break"> ... 第二聯 ... </div> -->
+<!-- <div class="receipt"> ... 第三聯 ... </div> -->
+
+</body>
+</html>

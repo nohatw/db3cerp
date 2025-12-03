@@ -1,0 +1,41 @@
+{% extends "base_auth.html" %}
+{% block title %}
+<title>LOGOUT 登出</title>
+{% endblock %}
+{% block css %}
+{% endblock css %}
+
+{% block authentication %}
+<!-- page-wrapper Start-->
+<section>
+    <div class="container-fluid p-0">
+        <div class="row">
+            <div class="col-12">
+                <div class="login-card">
+                    <form class="theme-form logout-form" method="post">
+                        {% csrf_token %}
+                        {% if request.user.is_authenticated %}
+                      
+                            <div class="form-group" style="width:300px;">        
+                                <h3 class="text-center py-3">確定要登出嗎？</h3>
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'business:order_list' %}" type="button" class="btn btn-primary btn-lg btn-block">回到訂單</a>
+                                    <button type='submit' class="btn btn-danger btn-lg btn-block">確定登出</button>
+                                </div>
+                            </div> 
+                          
+                        {% else %}
+                            <p>您已經登出。可以點擊 <a href="/login/">登入?</a></p>
+                        {% endif %}
+
+
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %} 
+
+{% block scriptcontent %}
+{% endblock %}

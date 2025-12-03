@@ -1,0 +1,452 @@
+{% extends 'base.html' %}
+{% load static %} 
+{% load humanize %}
+{% load currency %}
+{% block css %}
+<!-- Plugins css start-->
+<style>
+    .filter-section {
+        margin-bottom: 20px;
+        padding: 15px;
+        background-color: none;
+        border-radius: 5px;
+    }
+    .filter-title {
+        font-weight: 600;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 8px;
+    }
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .stats-card .stats-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+    }
+    .stats-card .stats-value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin: 10px 0;
+    }
+    .stats-card .stats-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    .amount-positive {
+        color: #28a745;
+        font-weight: 600;
+    }
+    .amount-negative {
+        color: #dc3545;
+        font-weight: 600;
+    }
+    .amount-refund {
+        color: #ffc107;
+        font-weight: 600;
+    }
+    @media (max-width: 767.98px) {
+        .topup-card {
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        .topup-card .card-header {
+            background-color: #f8f9fa;
+            padding: 10px 15px;
+        }
+        .topup-info {
+            font-size: 0.9rem;
+        }
+        .stats-card .stats-value {
+            font-size: 1.2rem;
+        }
+    }
+</style>
+<!-- Plugins css Ends-->
+{% endblock %}
+
+{% block title %}
+<title>儲值交易記錄 - DB3C ERP</title>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-body">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header pb-0 mb-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h3>儲值交易記錄</h3>
+                            <div>
+                                {% if is_headquarter_admin %}
+                                <a href="{% url 'accounts:account_list' %}" class="btn btn-sm btn-success">
+                                    <i class="fa fa-plus-circle"></i> 新增儲值
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body pt-0">
+                        <!-- 統計資訊卡片 -->
+                        <div class="row mb-3">
+                            <div class="col-md-6 col-sm-6 mb-3 mb-md-0">
+                                <div class="stats-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="w-100">
+                                            <div class="stats-label">
+                                                {% if is_headquarter_admin %}
+                                                    當前儲值總額
+                                                {% elif is_agent %}
+                                                    我的儲值總額
+                                                {% else %}
+                                                    我的儲值餘額
+                                                {% endif %}
+                                            </div>
+                                            <div class="stats-value">${{ total_balance|currency }}</div>
+                                            <div class="stats-label">
+                                                {% if is_headquarter_admin %}
+                                                    所有帳號的儲值餘額總和
+                                                {% elif is_agent %}
+                                                    包含我和下級的餘額
+                                                {% else %}
+                                                    可用餘額
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="stats-icon">
+                                            <i class="fa fa-wallet"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-sm-6">
+                                <div class="stats-card" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="w-100">
+                                            <div class="stats-label">
+                                                {% if is_headquarter_admin %}
+                                                    交易記錄統計
+                                                {% elif is_agent %}
+                                                    我的交易記錄
+                                                {% else %}
+                                                    我的交易記錄
+                                                {% endif %}
+                                            </div>
+                                            <div class="stats-value">{{ total_logs }} 筆</div>
+                                            <div class="stats-label">{{ total_accounts }} 個帳號</div>
+                                        </div>
+                                        <div class="stats-icon">
+                                            <i class="fa fa-list"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 過濾區塊 -->
+                        <div class="filter-section">
+                            <div class="filter-title">
+                                <i class="fa fa-filter"></i> 篩選條件
+                            </div>
+                            <form method="get" action="" id="filterForm">
+                                <div class="row g-3">
+                                    <!-- 搜尋關鍵字 -->
+                                    <div class="col-md-6">
+                                        <span class="form-label">搜尋</span>
+                                        <input type="text" name="q" class="form-control" placeholder="姓名、帳號、信箱、備註" value="{{ search_query }}">
+                                    </div>
+                                    
+                                    <!-- 異動類型 -->
+                                    <div class="col-md-2">
+                                        <span class="form-label">異動類型</span>
+                                        <select name="log_type" class="form-select">
+                                            <option value="">全部類型</option>
+                                            {% for value, label in topup_types %}
+                                                <option value="{{ value }}" {% if selected_log_type == value %}selected{% endif %}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    {% if is_headquarter_admin %}
+                                    <!-- 用戶狀態 -->
+                                    <div class="col-md-2">
+                                        <span class="form-label">用戶狀態</span>
+                                        <select name="status" class="form-select">
+                                            <option value="">全部狀態</option>
+                                            {% for value, label in account_statuses %}
+                                                <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- 用戶角色 -->
+                                    <div class="col-md-2">
+                                        <span class="form-label">用戶角色</span>
+                                        <select name="role" class="form-select">
+                                            <option value="">全部角色</option>
+                                            {% for value, label in account_roles %}
+                                                <option value="{{ value }}" {% if selected_role == value %}selected{% endif %}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- 操作按鈕 -->
+                                    <div class="col-md-4 d-flex align-items-end">
+                                        <button type="submit" class="btn btn-sm btn-primary me-2">
+                                            <i class="fa fa-search"></i> 搜尋
+                                        </button>
+                                        <a href="{% url 'business:topup_list' %}" class="btn btn-sm btn-secondary">
+                                            <i class="fa fa-refresh"></i> 重置
+                                        </a>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Desktop Table View (在手機上隱藏) -->
+                        <div class="table-responsive d-none d-md-block">
+                            <table class="table table-bordered table-hover">
+                                <thead>
+                                    <tr>
+                                        <th width="15%">時間</th>
+                                        <th width="15%">帳號資訊</th>
+                                        <th width="10%">類型</th>
+                                        <th width="10%">金額</th>
+                                        <th width="10%">平衡</th>
+                                        <th width="12%">訂單</th>
+                                        <th>備註</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in topup_logs %}
+                                        <tr>
+                                            <td>
+                                                <small>{{ log.created_at|date:"Y-m-d" }}</small><br>
+                                                <small class="text-muted">{{ log.created_at|date:"H:i:s" }}</small>
+                                            </td>
+                                            <td>
+                                                <strong>{{ log.topup.account.fullname|default:log.topup.account.username }}</strong>
+                                                {% if log.topup.account.role == 'HEADQUARTER' %}
+                                                <span class="badge bg-danger">{{ log.topup.account.get_role_display }}</span>
+                                                {% elif log.topup.account.role == 'AGENT' %}
+                                                <span class="badge bg-primary">{{ log.topup.account.get_role_display }}</span>
+                                                {% elif log.topup.account.role == 'DISTRIBUTOR' %}
+                                                <span class="badge bg-secondary">{{ log.topup.account.get_role_display }}</span>
+                                                {% endif %}
+                                                <br>
+                                                <small class="text-muted">{{ log.topup.account.email }}</small>
+                                            </td>
+                                            <td>
+                                                {% if log.log_type == 'DEPOSIT' %}
+                                                <span class="badge bg-success">
+                                                    <i class="fa fa-arrow-up"></i> {{ log.get_log_type_display }}
+                                                </span>
+                                                {% elif log.log_type == 'CONSUMPTION' %}
+                                                <span class="badge bg-danger">
+                                                    <i class="fa fa-arrow-down"></i> {{ log.get_log_type_display }}
+                                                </span>
+                                                {% elif log.log_type == 'REFUND' %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fa fa-undo"></i> {{ log.get_log_type_display }}
+                                                </span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="{% if log.log_type == 'DEPOSIT' or log.log_type == 'REFUND' %}amount-positive{% else %}amount-negative{% endif %}">
+                                                    {% if log.log_type == 'DEPOSIT' or log.log_type == 'REFUND' %}+{% else %}-{% endif %}${{ log.amount|currency }}
+                                                </span>
+                                            </td>
+                                            
+                                            <td>
+                                                <small class="">${{ log.balance_after|currency }}</small>
+                                            </td>
+                                            <td>
+                                                {% if log.order %}
+                                                    <a href="#" class="text-primary">
+                                                        <small>{{ log.order.id }}</small>
+                                                    </a>
+                                                {% else %}
+                                                    <small class="text-muted">-</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <small>{{ log.remark }}</small>
+                                            </td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="9" class="text-center py-3">
+                                                <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
+                                                <p class="text-muted">沒有找到儲值異動記錄</p>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Mobile Card View (在平板/桌面隱藏) -->
+                        <div class="d-md-none">
+                            {% for log in topup_logs %}
+                            <div class="card topup-card">
+                                <div class="card-header">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <strong>{{ log.topup.account.fullname|default:log.topup.account.username }}</strong>
+                                            {% if log.topup.account.role == 'HEADQUARTER' %}
+                                            <span class="badge bg-danger">{{ log.topup.account.get_role_display }}</span>
+                                            {% elif log.topup.account.role == 'AGENT' %}
+                                            <span class="badge bg-primary">{{ log.topup.account.get_role_display }}</span>
+                                            {% elif log.topup.account.role == 'DISTRIBUTOR' %}
+                                            <span class="badge bg-secondary">{{ log.topup.account.get_role_display }}</span>
+                                            {% endif %}
+                                            <br>
+                                            <small class="text-muted">{{ log.created_at|date:"Y-m-d H:i" }}</small>
+                                        </div>
+                                        <div>
+                                            {% if log.log_type == 'DEPOSIT' %}
+                                            <span class="badge bg-success">
+                                                <i class="fa fa-arrow-up"></i> {{ log.get_log_type_display }}
+                                            </span>
+                                            {% elif log.log_type == 'CONSUMPTION' %}
+                                            <span class="badge bg-danger">
+                                                <i class="fa fa-arrow-down"></i> {{ log.get_log_type_display }}
+                                            </span>
+                                            {% elif log.log_type == 'REFUND' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fa fa-undo"></i> {{ log.get_log_type_display }}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="topup-info">
+                                        <div class="row mb-2">
+                                            <div class="col-6">
+                                                <i class="fa fa-money-bill text-secondary"></i> 金額:
+                                            </div>
+                                            <div class="col-6 text-end">
+                                                <span class="{% if log.log_type == 'DEPOSIT' or log.log_type == 'REFUND' %}amount-positive{% else %}amount-negative{% endif %}">
+                                                    {% if log.log_type == 'DEPOSIT' or log.log_type == 'REFUND' %}+{% else %}-{% endif %}${{ log.amount|floatformat:0|intcomma }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-12 text-end">
+                                                <small class="text-muted">平衡: ${{ log.balance_after|floatformat:0|intcomma }}</small>
+                                            </div>
+                                        </div>
+                                        {% if log.order %}
+                                        <div class="row mb-2">
+                                            <div class="col-12">
+                                                <i class="fa fa-shopping-cart text-secondary"></i> 訂單: 
+                                                <a href="#" class="text-primary">{{ log.order.id }}</a>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% if log.remark %}
+                                        <div class="row">
+                                            <div class="col-12">
+                                                <small class="text-muted">
+                                                    <i class="fa fa-comment"></i> {{ log.remark }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="alert alert-info text-center">
+                                <i class="fa fa-inbox fa-3x mb-3"></i>
+                                <p>沒有找到儲值異動記錄</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- 分頁 -->
+                        <br />
+                        {% if is_paginated %}
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination">
+                                <!-- 上一頁 -->
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_role %}role={{ selected_role }}&{% endif %}{% if selected_log_type %}log_type={{ selected_log_type }}&{% endif %}page={{ page_obj.previous_page_number }}">&laquo; 上一頁</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">&laquo; 上一頁</span>
+                                    </li>
+                                {% endif %}
+
+                                <!-- 頁碼 -->
+                                {% for num in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_role %}role={{ selected_role }}&{% endif %}{% if selected_log_type %}log_type={{ selected_log_type }}&{% endif %}page={{ num }}">{{ num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                <!-- 下一頁 -->
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_role %}role={{ selected_role }}&{% endif %}{% if selected_log_type %}log_type={{ selected_log_type }}&{% endif %}page={{ page_obj.next_page_number }}">下一頁 &raquo;</a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scriptcontent %}
+<script>
+    // 表單自動提交
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusSelect = document.querySelector('select[name="status"]');
+        const roleSelect = document.querySelector('select[name="role"]');
+        const logTypeSelect = document.querySelector('select[name="log_type"]');
+        
+        if (statusSelect) {
+            statusSelect.addEventListener('change', function() {
+                document.getElementById('filterForm').submit();
+            });
+        }
+        
+        if (roleSelect) {
+            roleSelect.addEventListener('change', function() {
+                document.getElementById('filterForm').submit();
+            });
+        }
+        
+        if (logTypeSelect) {
+            logTypeSelect.addEventListener('change', function() {
+                document.getElementById('filterForm').submit();
+            });
+        }
+    });
+</script>
+
+{% endblock %}

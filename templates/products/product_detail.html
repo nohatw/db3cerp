@@ -1,0 +1,1295 @@
+{% extends 'base.html' %}
+{% load static %} 
+{% load humanize %}
+{% load currency %}
+{% block css %}
+<style>
+    /* 產品詳情容器 */
+    .product-detail-container {
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    
+    /* 產品圖片區域 */
+    .product-image-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 60px 40px;
+        text-align: center;
+        position: relative;
+    }
+    
+    .product-image-section i {
+        font-size: 60px;
+        color: rgba(255,255,255,0.9);
+    }
+    
+    .product-image-section img {
+        max-width: 100%;
+        max-height: 400px;
+        border-radius: 8px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+    
+    .product-category-badge {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: rgba(255,255,255,0.95);
+        color: #667eea;
+        padding: 4px 8px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    /* 產品資訊區域 */
+    .product-info-section {
+        padding: 40px;
+    }
+    
+    .product-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 20px;
+    }
+    
+    .product-description {
+        color: #666;
+        font-size: 16px;
+        line-height: 1.8;
+        margin-bottom: 30px;
+        padding-bottom: 30px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    /* 變體選擇區域 */
+    .variants-section {
+        margin-bottom: 40px;
+    }
+    
+    .section-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .section-title i {
+        margin-right: 10px;
+        color: #667eea;
+    }
+    
+    .variant-card {
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        cursor: pointer;
+        transition: all 0.3s;
+        position: relative;
+    }
+    
+    .variant-card:hover {
+        border-color: #667eea;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        transform: translateY(-2px);
+    }
+    
+    .variant-card.selected {
+        border-color: #667eea;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+    }
+    
+    .variant-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .variant-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: #333;
+        margin: 0;
+    }
+    
+    .variant-type-badge {
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .variant-type-badge.esim {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+    
+    .variant-type-badge.esimimg {
+        background: #f3e5f5;
+        color: #7b1fa2;
+    }
+    
+    .variant-type-badge.rechargeable {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+    
+    .variant-type-badge.physical {
+        background: #e8f5e9;
+        color: #388e3c;
+    }
+    
+    .variant-specs {
+        display: flex;
+        gap: 30px;
+        margin-bottom: 15px;
+    }
+    
+    .variant-spec-item {
+        display: flex;
+        align-items: center;
+        color: #666;
+        font-size: 14px;
+    }
+    
+    .variant-spec-item i {
+        margin-right: 8px;
+        color: #667eea;
+    }
+    
+    .variant-prices {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+    }
+    
+    .variant-price {
+        font-size: 28px;
+        font-weight: 700;
+        color: #667eea;
+    }
+    
+    .variant-price-original {
+        font-size: 18px;
+        color: #999;
+        text-decoration: line-through;
+    }
+    
+    .variant-price-label {
+        font-size: 12px;
+        color: #999;
+        display: block;
+        margin-bottom: 5px;
+    }
+    
+    .variant-discount-badge {
+        background: #ff6b6b;
+        color: #fff;
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .variant-description {
+        color: #666;
+        font-size: 14px;
+        line-height: 1.6;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #eee;
+    }
+    
+    /* 選中標記 */
+    .variant-selected-icon {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        width: 30px;
+        height: 30px;
+        background: #667eea;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    
+    .variant-card.selected .variant-selected-icon {
+        opacity: 1;
+    }
+    
+    /* 購買區域 */
+    .purchase-section {
+        background: #f8f9fa;
+        padding: 30px;
+        border-radius: 12px;
+        position: sticky;
+        top: 20px;
+    }
+    
+    .purchase-summary {
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .purchase-summary-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+        font-size: 14px;
+    }
+    
+    .purchase-summary-item:last-child {
+        margin-bottom: 0;
+        padding-top: 15px;
+        border-top: 2px solid #eee;
+        font-size: 18px;
+        font-weight: 700;
+    }
+    
+    .purchase-total {
+        color: #667eea;
+        font-size: 28px !important;
+    }
+    
+    .quantity-selector {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+    
+    .quantity-btn {
+        width: 40px;
+        height: 40px;
+        border: 1px solid #ddd;
+        background: #fff;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+    
+    .quantity-btn:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+    
+    .quantity-input {
+        width: 80px;
+        text-align: center;
+        font-size: 18px;
+        font-weight: 600;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        margin: 0 10px;
+        padding: 8px;
+    }
+    
+    .btn-add-cart {
+        width: 100%;
+        padding: 15px;
+        font-size: 18px;
+        font-weight: 600;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.3s;
+        margin-bottom: 10px;
+    }
+    
+    .btn-add-cart:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-add-cart:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .btn-buy-now {
+        width: 100%;
+        padding: 15px;
+        font-size: 18px;
+        font-weight: 600;
+        border-radius: 8px;
+        background: #fff;
+        border: 2px solid #667eea;
+        color: #667eea;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .btn-buy-now:hover {
+        background: #667eea;
+        color: #fff;
+    }
+    
+    /* 相關產品 */
+    .related-products-section {
+        margin-top: 60px;
+    }
+    
+    .related-product-card {
+        background: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.3s;
+        cursor: pointer;
+        height: 100%;
+    }
+    
+    .related-product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    }
+    
+    .related-product-image {
+        width: 100%;
+        height: 150px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 36px;
+    }
+    
+    .related-product-body {
+        padding: 15px;
+    }
+    
+    .related-product-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 10px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    .related-product-price {
+        font-size: 20px;
+        font-weight: 700;
+        color: #667eea;
+    }
+    
+    /* 響應式設計 */
+    @media (max-width: 768px) {
+        .product-image-section {
+            padding: 40px 20px;
+        }
+        
+        .product-image-section i {
+            font-size: 80px;
+        }
+        
+        .product-info-section {
+            padding: 20px;
+        }
+        
+        .product-title {
+            font-size: 24px;
+        }
+        
+        .variant-card {
+            padding: 15px;
+        }
+        
+        .variant-specs {
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .variant-prices {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .purchase-section {
+            position: static;
+            margin-top: 30px;
+        }
+    }
+    
+    /* 提示訊息 */
+    .alert-info {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .alert-info i {
+        margin-right: 10px;
+        color: #2196f3;
+    }
+    /* 交叉選擇區域 */
+    .selection-grid {
+        display: grid;
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+    
+    .selection-group {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 12px;
+    }
+    
+    .selection-group-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .selection-group-title i {
+        margin-right: 8px;
+        color: #667eea;
+    }
+    
+    .selection-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .selection-option {
+        padding: 10px 20px;
+        border: 2px solid #ddd;
+        background: #fff;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .selection-option:hover {
+        border-color: #667eea;
+        color: #667eea;
+        transform: translateY(-2px);
+    }
+    
+    .selection-option.selected {
+        border-color: #667eea;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .selection-option.disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+    
+    .selection-option.disabled:hover {
+        border-color: #ddd;
+        color: #333;
+        transform: none;
+    }
+    
+    /* 選中的變體資訊 */
+    .selected-variant-info {
+        background: #fff;
+        border: 2px solid #667eea;
+        border-radius: 12px;
+        padding: 25px;
+        margin-top: 20px;
+        display: none;
+    }
+    
+    .selected-variant-info.show {
+        display: block;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .selected-variant-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #eee;
+    }
+    
+    .selected-variant-name {
+        font-size: 20px;
+        font-weight: 700;
+        color: #333;
+    }
+    
+    .selected-variant-code {
+        color: #999;
+        font-size: 14px;
+    }
+    
+    .selected-variant-specs {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .selected-variant-spec {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    .selected-variant-spec i {
+        margin-right: 10px;
+        color: #667eea;
+        font-size: 18px;
+    }
+    
+    .selected-variant-spec-value {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .selected-variant-prices {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .selected-variant-price-box {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .selected-variant-price-label {
+        font-size: 12px;
+        color: #999;
+        margin-bottom: 5px;
+    }
+    
+    .selected-variant-price-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: #667eea;
+    }
+    
+    .selected-variant-price-original {
+        font-size: 18px;
+        color: #999;
+        text-decoration: line-through;
+        margin-left: 10px;
+    }
+    
+    .selected-variant-agent-price {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+        padding: 15px 20px;
+        border-radius: 8px;
+        color: #fff;
+    }
+    
+    .selected-variant-agent-price .selected-variant-price-label {
+        color: rgba(255,255,255,0.9);
+    }
+    
+    .selected-variant-agent-price .selected-variant-price-value {
+        color: #fff;
+    }
+</style>
+{% endblock %}
+
+{% block title %}
+<title>{{ product.name }} - DB3C ERP</title>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-fluid">
+        <!-- 麵包屑導航 -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'accounts:dashboard' %}"><i class="fa fa-home"></i></a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'products:catalogue_list' %}">產品目錄</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'products:catalogue_list' %}?category={{ product.category.id }}">{{ product.category.name }}</a></li>
+                    <li class="breadcrumb-item active">{{ product.name }}</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 左側：產品資訊 -->
+            <div class="col-lg-8">
+                <div class="product-detail-container">
+                    <!-- 產品圖片區域 -->
+                    <div class="product-image-section">
+                        <!-- <div class="product-category-badge">
+                            <i class="fa fa-tag"></i> {{ product.category.name }}
+                        </div> -->
+                        {% if product.image %}
+                            <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                        {% else %}
+                            <i class="fa fa-image"></i>
+                        {% endif %}
+                    </div>
+
+                    <!-- 產品資訊區域 -->
+                    <div class="product-info-section">
+                        <h1 class="product-title">{{ product.name }}</h1>
+                        
+                        {% if product.description %}
+                            <div class="product-description">
+                                {{ product.description|linebreaks }}
+                            </div>
+                        {% endif %}
+
+                        <!-- 交叉選擇區域 -->
+                        <div class="variants-section">
+                            <h3 class="section-title">
+                                <i class="fa fa-sliders-h"></i>
+                                選擇方案配置
+                            </h3>
+
+                            {% if variants %}
+                                <div class="alert-info">
+                                    <i class="fa fa-info-circle"></i>
+                                    請先選擇<strong>方案天數</strong>，再選擇<strong>流量規格</strong>，系統將自動匹配對應的方案
+                                </div>
+
+                                <div class="selection-grid">
+                                    <!-- 天數選擇 -->
+                                    <div class="selection-group">
+                                        <div class="selection-group-title">
+                                            <i class="fa fa-calendar"></i>
+                                            方案天數
+                                        </div>
+                                        <div class="selection-options" id="daysOptions">
+                                            {% for days in days_options %}
+                                                <button type="button" 
+                                                        class="selection-option" 
+                                                        data-days="{{ days }}"
+                                                        onclick="selectDays('{{ days }}')">
+                                                    {{ days }}
+                                                </button>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+
+                                    <!-- 流量規格選擇 -->
+                                    <div class="selection-group">
+                                        <div class="selection-group-title">
+                                            <i class="fa fa-database"></i>
+                                            流量規格
+                                        </div>
+                                        <div class="selection-options" id="dataAmountOptions">
+                                            {% for data_amount in data_amount_options %}
+                                                <button type="button" 
+                                                        class="selection-option disabled" 
+                                                        data-data-amount="{{ data_amount }}"
+                                                        onclick="selectDataAmount('{{ data_amount }}')">
+                                                    {{ data_amount }}
+                                                </button>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 選中的變體資訊 -->
+                                <div class="selected-variant-info" id="selectedVariantInfo">
+                                    <div class="selected-variant-header">
+                                        <div>
+                                            <div class="selected-variant-name" id="svName"></div>
+                                            <div class="selected-variant-code" id="svCode"></div>
+                                        </div>
+                                        <span class="variant-type-badge" id="svTypeBadge"></span>
+                                    </div>
+
+                                    <div class="selected-variant-specs">
+                                        <div class="selected-variant-spec">
+                                            <i class="fa fa-calendar"></i>
+                                            <div>
+                                                <div style="font-size: 12px; color: #999;">方案天數</div>
+                                                <div class="selected-variant-spec-value" id="svDays"></div>
+                                            </div>
+                                        </div>
+                                        <div class="selected-variant-spec">
+                                            <i class="fa fa-database"></i>
+                                            <div>
+                                                <div style="font-size: 12px; color: #999;">流量規格</div>
+                                                <div class="selected-variant-spec-value" id="svDataAmount"></div>
+                                            </div>
+                                        </div>
+                                        <div class="selected-variant-spec">
+                                            <i class="fa fa-barcode"></i>
+                                            <div>
+                                                <div style="font-size: 12px; color: #999;">產品類型</div>
+                                                <div class="selected-variant-spec-value" id="svType"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="svDescription" style="margin-bottom: 20px; color: #666; font-size: 14px; line-height: 1.6;"></div>
+
+                                    <div class="selected-variant-prices">
+                                        <div class="selected-variant-price-box">
+                                            <div class="selected-variant-price-label">
+                                                {% if is_distributor %}
+                                                    代理商售價
+                                                {% else %}
+                                                    售價
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <span class="selected-variant-price-value" id="svPrice">$0</span>
+                                                <span class="selected-variant-price-original" id="svPriceOriginal"></span>
+                                            </div>
+                                        </div>
+
+                                        <!-- 分銷商看到的是代理商價格，所以不需要額外顯示 -->
+                                        <!-- 總公司和代理商也不需要看到代理商價格 -->
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="fa fa-exclamation-triangle"></i>
+                                    目前沒有可用的方案規格
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                
+            </div>
+
+            <!-- 右側：購買區域 -->
+            <div class="col-lg-4">
+                <div class="purchase-section">
+                    <h4 class="mb-3">
+                        <i class="fa fa-shopping-cart"></i> 購買資訊
+                    </h4>
+
+                    <!-- 購買摘要 -->
+                    <div class="purchase-summary">
+                        <div class="purchase-summary-item">
+                            <span>產品名稱：</span>
+                            <strong>{{ product.name }}</strong>
+                        </div>
+                        <div class="purchase-summary-item">
+                            <span>選擇方案：</span>
+                            <strong id="selectedVariantName">請選擇方案</strong>
+                        </div>
+                        <div class="purchase-summary-item">
+                            <span>數量：</span>
+                            <strong><span id="selectedQuantity">1</span> 件</strong>
+                        </div>
+                        <div class="purchase-summary-item">
+                            <span>總計：</span>
+                            <span class="purchase-total" id="totalPrice">$0</span>
+                        </div>
+                    </div>
+
+                    <!-- 數量選擇 -->
+                    <div class="quantity-selector">
+                        <button type="button" class="quantity-btn" onclick="decreaseQuantity()">
+                            <i class="fa fa-minus"></i>
+                        </button>
+                        <input type="number" class="quantity-input" id="quantityInput" value="1" min="1" max="999" readonly>
+                        <button type="button" class="quantity-btn" onclick="increaseQuantity()">
+                            <i class="fa fa-plus"></i>
+                        </button>
+                    </div>
+
+                    <!-- 購買按鈕 -->
+                    <button type="button" class="btn-add-cart" id="addToCartBtn" disabled>
+                        <i class="fa fa-cart-plus"></i> 加入購物車
+                    </button>
+                    <button type="button" class="btn-buy-now" id="buyNowBtn" disabled>
+                        <i class="fa fa-bolt"></i> 立即購買
+                    </button>
+
+                    <!-- 提示訊息 -->
+                    <div class="alert-info mt-3" style="font-size: 13px;">
+                        <i class="fa fa-shield-alt"></i>
+                        <strong>購買保障：</strong>
+                        <ul style="margin: 10px 0 0 20px; padding: 0;">
+                            <li>正品保證</li>
+                            <li>7天無理由退換</li>
+                            <li>24小時客服支援</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <!-- 相關產品 -->
+            {% if related_products %}
+                <div class="related-products-section">
+                    <h3 class="section-title">
+                        <i class="fa fa-th"></i>
+                        相關產品推薦
+                    </h3>
+                    <div class="row">
+                        {% for related in related_products %}
+                            <div class="col-md-4 col-sm-6 mb-3">
+                                <div class="related-product-card" onclick="window.location.href='{% url 'products:product_detail' related.pk %}'">
+                                    <div class="related-product-image">
+                                        {% if related.image %}
+                                            <img src="{{ related.image.url }}" alt="{{ related.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                        {% else %}
+                                            <i class="fa fa-image"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="related-product-body">
+                                        <h5 class="related-product-name">{{ related.name }}</h5>
+                                        {% if related.min_price %}
+                                            <div class="related-product-price">起 ${{ related.min_price|floatformat:0|intcomma }}</div>
+                                        {% else %}
+                                            <div class="related-product-price" style="font-size: 14px; color: #999;">價格請洽客服</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scriptcontent %}
+<script>
+    // 變體映射表（從後端傳來）
+    const variantMap = {{ variant_map_json|safe }};
+    
+    // 用戶角色
+    const userRole = {
+        isHeadquarter: {% if is_headquarter %}true{% else %}false{% endif %},
+        isAgent: {% if is_agent %}true{% else %}false{% endif %},
+        isDistributor: {% if is_distributor %}true{% else %}false{% endif %}
+    };
+    
+    // 選中的配置
+    let selectedDays = null;
+    let selectedDataAmount = null;
+    let selectedVariant = null;
+
+    // 改進的 CSRF token 獲取方式
+    function getCsrfToken() {
+        // 方法 1: 從 cookie 獲取
+        const cookies = document.cookie.split('; ');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.split('=');
+            if (name === 'csrftoken') {
+                return decodeURIComponent(value);
+            }
+        }
+        
+        // 方法 2: 從 meta tag 獲取（如果有）
+        const metaTag = document.querySelector('meta[name="csrf-token"]');
+        if (metaTag) {
+            return metaTag.getAttribute('content');
+        }
+        
+        // 方法 3: 從隱藏的 input 獲取
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfInput) {
+            return csrfInput.value;
+        }
+        
+        // 方法 4: 從 window 對象獲取
+        if (window.csrfToken) {
+            return window.csrfToken;
+        }
+        
+        console.error('❌ CSRF token not found!');
+        return '';
+    }
+
+    const csrftoken = getCsrfToken();
+    console.log('🔑 CSRF Token:', csrftoken ? '✓ Found' : '✗ Not Found');
+    console.log('🔑 CSRF Token Length:', csrftoken ? csrftoken.length : 0);
+
+    // 選擇天數
+    function selectDays(days) {
+        selectedDays = days;
+        selectedDataAmount = null;
+        selectedVariant = null;
+
+        // 更新天數選項的選中狀態
+        document.querySelectorAll('[data-days]').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.days === days);
+        });
+
+        // 重置流量規格選項
+        updateDataAmountOptions();
+        
+        // 隱藏變體資訊
+        document.getElementById('selectedVariantInfo').classList.remove('show');
+        
+        // 重置購買資訊
+        resetPurchaseInfo();
+    }
+
+    // 更新流量規格選項（根據選中的天數）
+    function updateDataAmountOptions() {
+        const dataAmountBtns = document.querySelectorAll('[data-data-amount]');
+        
+        dataAmountBtns.forEach(btn => {
+            btn.classList.remove('selected');
+            
+            if (selectedDays) {
+                const key = `${selectedDays}|${btn.dataset.dataAmount}`;
+                if (variantMap[key]) {
+                    btn.classList.remove('disabled');
+                } else {
+                    btn.classList.add('disabled');
+                }
+            } else {
+                btn.classList.add('disabled');
+            }
+        });
+    }
+
+    // 選擇流量規格
+    function selectDataAmount(dataAmount) {
+        if (!selectedDays) {
+            alert('請先選擇方案天數');
+            return;
+        }
+
+        const key = `${selectedDays}|${dataAmount}`;
+        if (!variantMap[key]) {
+            alert('此組合暫無可用方案');
+            return;
+        }
+
+        selectedDataAmount = dataAmount;
+        selectedVariant = variantMap[key];
+
+        // 更新流量規格選項的選中狀態
+        document.querySelectorAll('[data-data-amount]').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.dataAmount === dataAmount);
+        });
+
+        // 顯示變體資訊
+        displaySelectedVariant();
+        
+        // 更新購買資訊
+        updatePurchaseInfo();
+    }
+
+    // 顯示選中的變體資訊
+    function displaySelectedVariant() {
+        if (!selectedVariant) return;
+
+        const v = selectedVariant;
+        
+        // 基本資訊
+        document.getElementById('svName').textContent = v.name;
+        document.getElementById('svCode').textContent = v.product_code ? `產品代碼：${v.product_code}` : '';
+        
+        // 類型徽章
+        const badge = document.getElementById('svTypeBadge');
+        badge.textContent = v.product_type_display;
+        badge.className = `variant-type-badge ${v.product_type}`;
+        
+        // 規格資訊
+        document.getElementById('svDays').textContent = v.days;
+        document.getElementById('svDataAmount').textContent = v.data_amount;
+        document.getElementById('svType').textContent = v.product_type_display;
+        
+        // 描述
+        document.getElementById('svDescription').textContent = v.description || '';
+        
+        // 根據用戶角色顯示價格
+        let displayPrice, originalPrice;
+        
+        if (userRole.isDistributor) {
+            displayPrice = v.price_sales_agent || v.price_agent;
+            originalPrice = v.price_agent;
+        } else {
+            displayPrice = v.price_sales || v.price;
+            originalPrice = v.price;
+        }
+        
+        // 顯示售價
+        document.getElementById('svPrice').textContent = displayPrice ? `$${displayPrice.toLocaleString()}` : '請洽客服';
+        
+        // 原價
+        if (userRole.isDistributor) {
+            if (v.price_sales_agent && v.price_agent && v.price_agent > v.price_sales_agent) {
+                document.getElementById('svPriceOriginal').textContent = `$${v.price_agent.toLocaleString()}`;
+                document.getElementById('svPriceOriginal').style.display = 'inline';
+            } else {
+                document.getElementById('svPriceOriginal').style.display = 'none';
+            }
+        } else {
+            if (v.price_sales && v.price && v.price > v.price_sales) {
+                document.getElementById('svPriceOriginal').textContent = `$${v.price.toLocaleString()}`;
+                document.getElementById('svPriceOriginal').style.display = 'inline';
+            } else {
+                document.getElementById('svPriceOriginal').style.display = 'none';
+            }
+        }
+        
+        // 顯示區塊
+        document.getElementById('selectedVariantInfo').classList.add('show');
+    }
+
+    // 更新購買資訊
+    function updatePurchaseInfo() {
+        if (!selectedVariant) {
+            resetPurchaseInfo();
+            return;
+        }
+
+        const v = selectedVariant;
+        
+        // 更新方案名稱
+        document.getElementById('selectedVariantName').textContent = v.name;
+
+        // 計算總價
+        const quantity = parseInt(document.getElementById('quantityInput').value);
+        let price;
+        
+        if (userRole.isDistributor) {
+            price = v.price_sales_agent || v.price_agent || 0;
+        } else {
+            price = v.price_sales || v.price || 0;
+        }
+
+        const total = price * quantity;
+        document.getElementById('totalPrice').textContent = `$${total.toLocaleString()}`;
+
+        // 啟用購買按鈕
+        document.getElementById('addToCartBtn').disabled = false;
+        document.getElementById('buyNowBtn').disabled = false;
+    }
+
+    // 重置購買資訊
+    function resetPurchaseInfo() {
+        document.getElementById('selectedVariantName').textContent = '請選擇方案';
+        document.getElementById('totalPrice').textContent = '$0';
+        document.getElementById('addToCartBtn').disabled = true;
+        document.getElementById('buyNowBtn').disabled = true;
+    }
+
+    // 增加數量
+    function increaseQuantity() {
+        const input = document.getElementById('quantityInput');
+        let value = parseInt(input.value);
+        if (value < 999) {
+            input.value = value + 1;
+            document.getElementById('selectedQuantity').textContent = input.value;
+            updatePurchaseInfo();
+        }
+    }
+
+    // 減少數量
+    function decreaseQuantity() {
+        const input = document.getElementById('quantityInput');
+        let value = parseInt(input.value);
+        if (value > 1) {
+            input.value = value - 1;
+            document.getElementById('selectedQuantity').textContent = input.value;
+            updatePurchaseInfo();
+        }
+    }
+
+    // 加入購物車 - 完整版
+    document.getElementById('addToCartBtn')?.addEventListener('click', function() {
+        if (!selectedVariant) {
+            alert('請先選擇方案配置');
+            return;
+        }
+
+        const quantity = parseInt(document.getElementById('quantityInput').value);
+        const btn = this;
+        
+        // 重新獲取 CSRF token
+        const token = getCsrfToken();
+        
+        if (!token) {
+            alert('❌ 安全驗證失敗，請重新整理頁面');
+            console.error('CSRF token is missing');
+            return;
+        }
+        
+        // 禁用按鈕防止重複點擊
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 處理中...';
+        
+        // 建立 FormData
+        const formData = new FormData();
+        formData.append('quantity', quantity);
+        formData.append('csrfmiddlewaretoken', token);
+        
+        console.log('📤 Sending request to:', `/business/cart/add/${selectedVariant.id}/`);
+        console.log('📦 Variant ID:', selectedVariant.id);
+        console.log('📦 Quantity:', quantity);
+        console.log('🔑 CSRF Token:', token.substring(0, 10) + '...');
+        
+        // 發送 AJAX 請求
+        fetch(`/business/cart/add/${selectedVariant.id}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': token,
+            },
+            body: formData,
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            console.log('📥 Response status:', response.status);
+            console.log('📥 Response ok:', response.ok);
+            
+            if (!response.ok) {
+                return response.text().then(text => {
+                    console.error('❌ Response error:', text);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('✅ Response data:', data);
+            
+            if (data.success) {
+                // 更新購物車圖標數量
+                const cartBadge = document.querySelector('.cart-badge');
+                if (cartBadge) {
+                    cartBadge.textContent = data.cart_count;
+                    cartBadge.style.display = 'inline-block';
+                }
+                
+                // 顯示成功訊息
+                const message = `✓ ${data.message}\n\n購物車共 ${data.cart_count} 件商品\n總計：$${data.total.toLocaleString()}`;
+                alert(message);
+                
+                // 詢問是否前往購物車
+                if (confirm('是否前往購物車結帳？')) {
+                    window.location.href = '/business/cart/';
+                }
+            } else {
+                alert('❌ ' + (data.error || '加入購物車失敗'));
+            }
+        })
+        .catch(error => {
+            console.error('❌ Fetch error:', error);
+            console.error('❌ Error message:', error.message);
+            alert(`❌ 加入購物車失敗\n\n錯誤訊息：${error.message}\n\n請開啟瀏覽器控制台查看詳細資訊`);
+        })
+        .finally(() => {
+            // 恢復按鈕狀態
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-cart-plus"></i> 加入購物車';
+        });
+    });
+
+    // 立即購買 - 完整版
+    document.getElementById('buyNowBtn')?.addEventListener('click', function() {
+        if (!selectedVariant) {
+            alert('請先選擇方案配置');
+            return;
+        }
+
+        const quantity = parseInt(document.getElementById('quantityInput').value);
+        const btn = this;
+        const token = getCsrfToken();
+        
+        if (!token) {
+            alert('❌ 安全驗證失敗，請重新整理頁面');
+            return;
+        }
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 處理中...';
+        
+        const formData = new FormData();
+        formData.append('quantity', quantity);
+        formData.append('csrfmiddlewaretoken', token);
+        
+        // 先加入購物車
+        fetch(`/business/cart/add/${selectedVariant.id}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': token,
+            },
+            body: formData,
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(`HTTP ${response.status}: ${text}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // 直接跳轉到購物車
+                window.location.href = '/business/cart/';
+            } else {
+                alert('❌ ' + (data.error || '操作失敗'));
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-bolt"></i> 立即購買';
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error:', error);
+            alert(`❌ 操作失敗\n\n錯誤訊息：${error.message}`);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-bolt"></i> 立即購買';
+        });
+    });
+
+    // 頁面載入時初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        updateDataAmountOptions();
+    });
+</script>
+{% endblock %}

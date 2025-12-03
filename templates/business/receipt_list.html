@@ -1,0 +1,426 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+{% load currency %}
+
+{% block title %}<title>收據列表 - DB3C ERP</title>{% endblock %}
+
+{% block css %}
+<style>
+    /* 收據卡片樣式 */
+    .receipt-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .receipt-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }
+    
+    /* 收據標題 */
+    .receipt-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .receipt-number {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #0d6efd;
+    }
+    
+    .receipt-date {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    /* 收據資訊 */
+    .receipt-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .receipt-info-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .receipt-info-label {
+        color: #6c757d;
+        font-size: 0.85rem;
+        margin-bottom: 5px;
+    }
+    
+    .receipt-info-value {
+        font-weight: 600;
+        font-size: 1rem;
+    }
+    
+    /* 收據金額 */
+    .receipt-amount {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #28a745;
+    }
+    
+    /* 操作按鈕 */
+    .receipt-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    /* 統計卡片 */
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 20px;
+        color: white;
+        margin-bottom: 20px;
+    }
+    
+    .stats-card h3 {
+        font-size: 2rem;
+        margin: 10px 0;
+    }
+    
+    .stats-card.green {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+    
+    /* 篩選區域 */
+    .filter-section {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    /* 空狀態 */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <!-- 頁面標題 -->
+        <div class="page-header d-print-none">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h2 class="page-title">
+                        <i class="ti ti-receipt"></i> 收據列表
+                    </h2>
+                    <div class="text-muted">管理所有收據記錄</div>
+                </div>
+                <div class="col-auto">
+                    {% if is_headquarter_admin %}
+                    <a href="{% url 'business:receipt_create' %}" class="btn btn-primary">
+                        <i class="ti ti-plus"></i> 新增收據
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 統計卡片 -->
+        <!-- <div class="row">
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="small">收據總數</div>
+                    <h3>{{ total_receipts }}</h3>
+                    <div class="small">
+                        訂單收據：{{ order_receipt_count }} 筆<br>
+                        手動收據：{{ manual_receipt_count }} 筆
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card green">
+                    <div class="small">總金額</div>
+                    <h3>${{ total_amount|currency }}</h3>
+                    <div class="small">所有收據總計</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <div class="small">手動收據比例</div>
+                    <h3>
+                        {% if total_receipts > 0 %}
+                            {{ manual_receipt_count|floatformat:0 }}%
+                        {% else %}
+                            0%
+                        {% endif %}
+                    </h3>
+                    <div class="small">{{ manual_receipt_count }} / {{ total_receipts }}</div>
+                </div>
+            </div>
+        </div> -->
+
+        <!-- 篩選區域 -->
+        <div class="filter-section">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <!-- 搜尋 -->
+                    <div class="col-md-3">
+                        <label class="form-label">搜尋</label>
+                        <input type="text" name="q" class="form-control" 
+                               placeholder="收據編號/抬頭/統編/訂單編號" 
+                               value="{{ search_query }}">
+                    </div>
+
+                    <!-- ✅ 收據類型 -->
+                    <div class="col-md-2">
+                        <label class="form-label">收據類型</label>
+                        <select name="receipt_type" class="form-select">
+                            <option value="">全部類型</option>
+                            {% for value, label in receipt_types %}
+                                <option value="{{ value }}" {% if selected_receipt_type == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 開始日期 -->
+                    <div class="col-md-2">
+                        <label class="form-label">開始日期</label>
+                        <input type="date" name="date_from" class="form-control" 
+                               value="{{ date_from }}">
+                    </div>
+
+                    <!-- 結束日期 -->
+                    <div class="col-md-2">
+                        <label class="form-label">結束日期</label>
+                        <input type="date" name="date_to" class="form-control" 
+                               value="{{ date_to }}">
+                    </div>
+
+                    <!-- 操作按鈕 -->
+                    <div class="col-md-3 d-flex align-items-end gap-2">
+                        <div>
+                            <button type="submit" class="btn btn-primary flex-fill">
+                                <i class="ti ti-search"></i> 搜尋
+                            </button>
+                            <a href="{% url 'business:receipt_list' %}" class="btn btn-outline-secondary">
+                                <i class="ti ti-x"></i> 清除
+                            </a>
+                        </div>
+                        
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- 收據列表 -->
+        {% if receipts %}
+            {% for receipt in receipts %}
+            <div class="receipt-card">
+                <!-- 收據標題 -->
+                <div class="receipt-header">
+                    <div>
+                        <div class="receipt-number">
+                            <i class="ti ti-receipt"></i> {{ receipt.receipt_number }}
+                            
+                            <!-- ✅ 顯示收據類型標籤 -->
+                            {% if receipt.receipt_type == 'ORDER' %}
+                                <span class="badge bg-primary ms-2">訂單收據</span>
+                            {% elif receipt.receipt_type == 'MANUAL' %}
+                                <span class="badge bg-info ms-2">手動建立</span>
+                            {% endif %}
+                        </div>
+                        <div class="receipt-date">
+                            <i class="ti ti-calendar"></i> {{ receipt.date|date:"Y-m-d" }}
+                        </div>
+                    </div>
+                    <div class="receipt-amount">
+                        {% if receipt.order and receipt.order.total_amount %}
+                            ${{ receipt.order.total_amount|currency }}
+                        {% else %}
+                            ${{ receipt.total_amount|currency }}
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- 收據資訊 -->
+                <div class="receipt-info">
+                    <div class="receipt-info-item">
+                        <div class="receipt-info-label">收據抬頭</div>
+                        <div class="receipt-info-value">
+                            {{ receipt.receipt_to|default:"（無抬頭）" }}
+                        </div>
+                    </div>
+
+                    {% if receipt.taxid %}
+                    <div class="receipt-info-item">
+                        <div class="receipt-info-label">統一編號</div>
+                        <div class="receipt-info-value">{{ receipt.taxid }}</div>
+                    </div>
+                    {% endif %}
+
+                    <div class="receipt-info-item">
+                        <div class="receipt-info-label">產品項目</div>
+                        <div class="receipt-info-value">
+                            {{ receipt.item_count }} 項
+                        </div>
+                    </div>
+
+                    <!-- ✅ 顯示收據類型 -->
+                    <div class="receipt-info-item">
+                        <div class="receipt-info-label">收據類型</div>
+                        <div class="receipt-info-value">
+                            {% if receipt.receipt_type == 'ORDER' %}
+                                <span class="badge bg-primary">{{ receipt.get_receipt_type_display }}</span>
+                            {% elif receipt.receipt_type == 'MANUAL' %}
+                                <span class="badge bg-info">{{ receipt.get_receipt_type_display }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if receipt.order %}
+                    <div class="receipt-info-item">
+                        <div class="receipt-info-label">關聯訂單</div>
+                        <div class="receipt-info-value">
+                            <a href="{% url 'business:order_detail' pk=receipt.order.id %}" class="text-primary">
+                                #{{ receipt.order.id }}
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="receipt-info-item">
+                        <div class="receipt-info-label">建立人</div>
+                        <div class="receipt-info-value">
+                            {{ receipt.created_by.fullname|default:receipt.created_by.username }}
+                        </div>
+                    </div>
+
+                    <div class="receipt-info-item">
+                        <div class="receipt-info-label">建立時間</div>
+                        <div class="receipt-info-value">
+                            {{ receipt.created_at|date:"Y-m-d H:i" }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 備註 -->
+                {% if receipt.remark %}
+                <div class="mt-2">
+                    <div class="receipt-info-label">備註</div>
+                    <div class="text-muted">{{ receipt.remark }}</div>
+                </div>
+                {% endif %}
+
+                <!-- 操作按鈕 -->
+                <div class="receipt-actions d-flex justify-content-between">
+                    <div>
+                        <a href="{% url 'business:receipt_detail' pk=receipt.id %}" 
+                            class="btn btn-outline-primary btn-sm">
+                            <i class="ti ti-eye"></i> 查看詳情
+                        </a>
+                        <a href="{% url 'business:receipt_print' pk=receipt.id %}" 
+                            class="btn btn-outline-success btn-sm" target="_blank">
+                            <i class="ti ti-download"></i> 列印 PDF
+                        </a>
+                    </div>
+                    <div>
+                        <!-- ✅ 只有手動建立的收據才顯示編輯按鈕 -->
+                        {% if is_headquarter_admin and receipt.receipt_type == 'MANUAL' %}
+                            <a href="{% url 'business:receipt_update' pk=receipt.id %}" 
+                            class="btn btn-outline-warning btn-sm">
+                                <i class="ti ti-edit"></i> 編輯收據
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- 分頁 -->
+            {% if is_paginated %}
+            <div class="d-flex justify-content-center my-4">
+                <nav>
+                    <ul class="pagination">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_receipt_type %}&receipt_type={{ selected_receipt_type }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">首頁</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_receipt_type %}&receipt_type={{ selected_receipt_type }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">上一頁</a>
+                        </li>
+                        {% endif %}
+
+                        <li class="page-item active">
+                            <span class="page-link">
+                                第 {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} 頁
+                            </span>
+                        </li>
+
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_receipt_type %}&receipt_type={{ selected_receipt_type }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">下一頁</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_receipt_type %}&receipt_type={{ selected_receipt_type }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">末頁</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+
+        {% else %}
+            <!-- 空狀態 -->
+            <div class="empty-state">
+                <i class="ti ti-receipt-off"></i>
+                <h3>沒有找到收據</h3>
+                <p class="text-muted">
+                    {% if search_query or date_from or date_to or selected_receipt_type %}
+                        請嘗試調整篩選條件
+                    {% else %}
+                        目前還沒有任何收據記錄
+                    {% endif %}
+                </p>
+                {% if is_headquarter_admin %}
+                <a href="{% url 'business:receipt_create' %}" class="btn btn-primary mt-3">
+                    <i class="ti ti-plus"></i> 新增第一筆收據
+                </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+    // 自動提交表單（當日期或類型改變時）
+    document.querySelectorAll('input[type="date"], select[name="receipt_type"]').forEach(input => {
+        input.addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+    });
+</script>
+{% endblock %}

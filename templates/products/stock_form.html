@@ -1,0 +1,442 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+<title>新增庫存 - DB3C ERP</title>
+{% endblock %}
+
+{% block css %}
+<style>
+    .form-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 2px dashed #dee2e6;
+    }
+    
+    .form-section.active {
+        border-color: #0d6efd;
+        background: #e7f1ff;
+    }
+    
+    .form-section-title {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .form-section-title i {
+        font-size: 1.2rem;
+    }
+    
+    .help-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 5px;
+    }
+    
+    .product-type-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-left: 10px;
+    }
+    
+    .badge-esimimg {
+        background: #e7f1ff;
+        color: #0d6efd;
+    }
+    
+    .badge-other {
+        background: #d1e7dd;
+        color: #0f5132;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h3 class="card-title mb-0">
+                                <i class="ti ti-box-plus"></i> 新增庫存
+                            </h3>
+                            <a href="{% url 'products:stock_list' %}" class="btn btn-outline-secondary btn-sm">
+                                <i class="ti ti-arrow-left"></i> 返回庫存列表
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" enctype="multipart/form-data" id="stockForm">
+                            {% csrf_token %}
+                            
+                            <!-- ✅ 修正：錯誤訊息顯示 -->
+                            {% if form.errors or form.non_field_errors %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <h4 class="alert-heading">
+                                    <i class="ti ti-alert-circle"></i> 表單驗證失敗
+                                </h4>
+                                <hr>
+                                <ul class="mb-0">
+                                    {% if form.non_field_errors %}
+                                        {% for error in form.non_field_errors %}
+                                            <li><strong>表單錯誤：</strong>{{ error }}</li>
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% for field in form %}
+                                        {% if field.errors %}
+                                            {% for error in field.errors %}
+                                                <li>
+                                                    <strong>{{ field.label }}：</strong>
+                                                    {{ error }}
+                                                </li>
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% endfor %}
+                                </ul>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                            {% endif %}
+
+                            <!-- 步驟 1: 選擇產品變體 -->
+                            <div class="mb-4">
+                                <label class="form-label required">
+                                    <i class="ti ti-package"></i> 選擇產品變體
+                                </label>
+                                
+                                <!-- ✅ 修改：手動渲染 Select 以包含 data-type 屬性 -->
+                                <select name="product" id="id_product" class="form-select" required>
+                                    <option value="">請選擇產品變體...</option>
+                                    {% for variant in form.product.field.queryset %}
+                                        <option value="{{ variant.id }}" 
+                                                data-type="{{ variant.product_type }}"
+                                                {% if form.product.value|stringformat:"s" == variant.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ variant.product.name }} - {{ variant.name }} 
+                                            ({{ variant.get_product_type_display }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <!-- 修改結束 -->
+
+                                <div class="help-text">
+                                    <i class="ti ti-info-circle"></i> 
+                                    根據所選產品類型，下方將顯示對應的庫存建立方式
+                                </div>
+                                
+                                <!-- 產品類型提示標籤 -->
+                                <div id="product-type-indicator" class="mt-2" style="display: none;">
+                                    <span id="type-badge" class="product-type-badge"></span>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <!-- 步驟 2: 基本資訊 -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label required">
+                                        <i class="ti ti-tag"></i> 庫存批次名稱
+                                    </label>
+                                    {{ form.name }}
+                                    <div class="help-text">
+                                        <i class="ti ti-bulb"></i> 
+                                        建議格式：年月 + 批次說明，方便日後管理
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="form-label">
+                                        <i class="ti ti-calendar-event"></i> 過期時間
+                                    </label>
+                                    {{ form.expire_date }}
+                                    <div class="help-text">
+                                        <i class="ti ti-info-circle"></i> 
+                                        選填，如產品無期限可留空
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 步驟 3A: ESIMIMG 專用 - 批量圖片上傳 -->
+                            <div id="section-images" class="form-section" style="display: none;">
+                                <div class="form-section-title">
+                                    <i class="ti ti-photo"></i>
+                                    <span>批量上傳 QR 圖片</span>
+                                    <span class="badge bg-info">ESIMIMG 專用</span>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label required">
+                                        選擇圖片檔案 (支援多選)
+                                    </label>
+                                    {{ form.qr_images }}
+                                    <div class="help-text">
+                                        <i class="ti ti-alert-circle"></i> 
+                                        <strong>重要說明：</strong>
+                                        <ul class="mb-0 mt-1">
+                                            <li>可一次選擇多張圖片（支援 JPG、PNG、GIF）</li>
+                                            <li>系統將自動為每張圖片建立一筆庫存（數量 = 1）</li>
+                                            <li>例如：上傳 10 張圖 = 建立 10 筆庫存記錄</li>
+                                            <li><strong>圖片檔名將作為庫存代碼（CODE）</strong></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <!-- 圖片預覽區 -->
+                                <div id="image-preview" class="mt-3"></div>
+                            </div>
+
+                            <!-- 步驟 3B: 其他類型 - 標準庫存輸入 -->
+                            <div id="section-standard" class="form-section" style="display: none;">
+                                <div class="form-section-title">
+                                    <i class="ti ti-box"></i>
+                                    <span>標準庫存資訊</span>
+                                    <span class="badge bg-success">ESIM / 充值卡 / 實體卡</span>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-12 mb-3">
+                                        <label class="form-label required">
+                                            <i class="ti ti-number"></i> 庫存數量
+                                        </label>
+                                        {{ form.quantity }}
+                                        <div class="help-text">
+                                            <i class="ti ti-info-circle"></i> 
+                                            此批次的總庫存數量
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <!-- 步驟 4: 備註 -->
+                            <div class="mb-4">
+                                <label class="form-label">
+                                    <i class="ti ti-note"></i> 備註說明
+                                </label>
+                                {{ form.description }}
+                                <div class="help-text">
+                                    <i class="ti ti-info-circle"></i> 
+                                    選填，方便日後查詢和管理
+                                </div>
+                            </div>
+
+                            <!-- 操作按鈕 -->
+                            <div class="d-flex justify-content-between align-items-center">
+                                <a href="{% url 'products:stock_list' %}" class="btn btn-outline-secondary">
+                                    <i class="ti ti-arrow-left"></i> 取消
+                                </a>
+                                <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                                    <i class="ti ti-device-floppy"></i> 儲存庫存
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scriptcontent %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productSelect = document.getElementById('id_product');
+    const sectionImages = document.getElementById('section-images');
+    const sectionStandard = document.getElementById('section-standard');
+    const typeIndicator = document.getElementById('product-type-indicator');
+    const typeBadge = document.getElementById('type-badge');
+    const submitBtn = document.getElementById('submitBtn');
+    const imageInput = document.getElementById('id_qr_images');
+    const imagePreview = document.getElementById('image-preview');
+    const quantityInput = document.getElementById('id_quantity');
+    
+    // 獲取變體類型對照
+    const variantTypes = {};
+    productSelect.querySelectorAll('option').forEach(option => {
+        if (option.value) {
+            variantTypes[option.value] = option.dataset.type;
+        }
+    });
+
+    function updateFormFields() {
+        const selectedId = productSelect.value;
+        
+        // 未選擇時隱藏所有區塊
+        if (!selectedId) {
+            sectionImages.style.display = 'none';
+            sectionStandard.style.display = 'none';
+            typeIndicator.style.display = 'none';
+            return;
+        }
+        
+        const type = variantTypes[selectedId];
+        
+        // 重置必填狀態
+        quantityInput.removeAttribute('required');
+        imageInput.removeAttribute('required');
+        
+        // 顯示產品類型標籤
+        typeIndicator.style.display = 'block';
+        
+        if (type === 'esimimg') {
+            // ESIMIMG: 顯示批量圖片上傳
+            sectionImages.style.display = 'block';
+            sectionImages.classList.add('active');
+            sectionStandard.style.display = 'none';
+            sectionStandard.classList.remove('active');
+            
+            typeBadge.textContent = '圖庫 eSIM (批量上傳模式)';
+            typeBadge.className = 'product-type-badge badge-esimimg';
+            
+            submitBtn.innerHTML = '<i class="ti ti-photo-up"></i> 批量建立圖庫庫存';
+            
+            // ESIMIMG 需要至少上傳一張圖
+            imageInput.setAttribute('required', 'required');
+            
+            // ✅ 清空數量欄位（ESIMIMG 不需要手動輸入數量）
+            quantityInput.value = '';
+            
+        } else {
+            // 其他類型: 顯示標準輸入
+            sectionStandard.style.display = 'block';
+            sectionStandard.classList.add('active');
+            sectionImages.style.display = 'none';
+            sectionImages.classList.remove('active');
+            
+            let typeText = '';
+            if (type === 'esim') {
+                typeText = 'eSIM (標準庫存)';
+            } else if (type === 'rechargeable') {
+                typeText = '充值卡 (標準庫存)';
+            } else if (type === 'physical') {
+                typeText = '實體卡 (標準庫存)';
+            }
+            
+            typeBadge.textContent = typeText;
+            typeBadge.className = 'product-type-badge badge-other';
+            
+            submitBtn.innerHTML = '<i class="ti ti-device-floppy"></i> 儲存庫存';
+            
+            // 標準模式需要數量
+            quantityInput.setAttribute('required', 'required');
+        }
+    }
+
+    // ✅ 圖片預覽功能 + 自動設定數量
+    imageInput.addEventListener('change', function(e) {
+        imagePreview.innerHTML = '';
+        const files = e.target.files;
+        
+        if (files.length > 0) {
+            // ✅ 自動填入數量（圖片數量）
+            quantityInput.value = files.length;
+            
+            const previewTitle = document.createElement('div');
+            previewTitle.className = 'alert alert-info mb-2';
+            previewTitle.innerHTML = `
+                <i class="ti ti-photo-check"></i> 
+                已選擇 <strong>${files.length}</strong> 張圖片，
+                將建立 <strong>${files.length}</strong> 筆庫存記錄
+            `;
+            imagePreview.appendChild(previewTitle);
+            
+            const previewContainer = document.createElement('div');
+            previewContainer.className = 'd-flex flex-wrap gap-2';
+            previewContainer.style.maxHeight = '400px';
+            previewContainer.style.overflowY = 'auto';
+            
+            Array.from(files).forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imgWrapper = document.createElement('div');
+                    imgWrapper.className = 'border rounded p-2 text-center';
+                    imgWrapper.style.width = '120px';
+                    
+                    // ✅ 從檔名提取 CODE（去除副檔名）
+                    const filename = file.name;
+                    const code = filename.substring(0, filename.lastIndexOf('.')) || filename;
+                    
+                    imgWrapper.innerHTML = `
+                        <img src="${e.target.result}" 
+                             class="img-fluid rounded mb-1" 
+                             style="max-height: 80px; object-fit: cover;"
+                             title="${filename}">
+                        <small class="d-block text-muted text-truncate" title="${code}">
+                            ${index + 1}. ${code}
+                        </small>
+                    `;
+                    previewContainer.appendChild(imgWrapper);
+                };
+                reader.readAsDataURL(file);
+            });
+            
+            imagePreview.appendChild(previewContainer);
+        } else {
+            // ✅ 沒有圖片時清空數量
+            quantityInput.value = '';
+        }
+    });
+
+    // 監聽產品選擇變化
+    productSelect.addEventListener('change', updateFormFields);
+    
+    // 初始化（處理編輯時的預設值）
+    if (productSelect.value) {
+        updateFormFields();
+    }
+    
+    // ✅ 表單提交驗證
+    document.getElementById('stockForm').addEventListener('submit', function(e) {
+        const selectedId = productSelect.value;
+        
+        if (!selectedId) {
+            e.preventDefault();
+            alert('請選擇產品變體');
+            productSelect.focus();
+            return false;
+        }
+        
+        const type = variantTypes[selectedId];
+        
+        if (type === 'esimimg') {
+            const files = imageInput.files;
+            if (files.length === 0) {
+                e.preventDefault();
+                alert('請至少上傳一張 QR 圖片');
+                imageInput.focus();
+                return false;
+            }
+        } else {
+            const quantity = quantityInput.value;
+            if (!quantity || quantity < 1) {
+                e.preventDefault();
+                alert('請輸入有效的庫存數量');
+                quantityInput.focus();
+                return false;
+            }
+        }
+        
+        // ✅ 修正：使用 setTimeout 延遲禁用按鈕，避免阻擋表單提交
+        const btn = submitBtn;
+        setTimeout(function() {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>處理中...';
+        }, 50);
+    });
+    
+    console.log('✅ 庫存新增表單載入完成');
+});
+</script>
+{% endblock %}

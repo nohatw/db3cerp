@@ -1,0 +1,361 @@
+{% extends 'base.html' %}
+{% load static %} 
+{% load humanize %}
+
+{% block css %}
+<style>
+    .create-card {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .form-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px 10px 0 0;
+        margin: -20px -20px 20px -20px;
+    }
+    .form-header h4 {
+        margin: 0;
+        color: white;
+    }
+    .form-header .breadcrumb {
+        margin: 10px 0 0 0;
+        background: transparent;
+    }
+    .form-header .breadcrumb-item a {
+        color: rgba(255, 255, 255, 0.8);
+    }
+    .form-header .breadcrumb-item.active {
+        color: white;
+    }
+    .form-label {
+        font-weight: 600;
+        color: #333;
+    }
+    .required-field::after {
+        content: " *";
+        color: red;
+    }
+    .info-box {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    .info-box i {
+        color: #ffc107;
+        margin-right: 10px;
+    }
+    .warning-box {
+        background: #f8d7da;
+        border-left: 4px solid #dc3545;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    .warning-box i {
+        color: #dc3545;
+        margin-right: 10px;
+    }
+    .account-info-box {
+        background: #e7f3ff;
+        border: 2px solid #667eea;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .account-info-box .account-name {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #667eea;
+        margin-bottom: 10px;
+    }
+    .account-info-box .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #d0e7ff;
+    }
+    .account-info-box .info-row:last-child {
+        border-bottom: none;
+    }
+    .account-info-box .info-label {
+        color: #666;
+        font-weight: 500;
+    }
+    .account-info-box .info-value {
+        color: #333;
+        font-weight: 600;
+    }
+    .btn-submit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        padding: 10px 30px;
+    }
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    .btn-change-account {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 5px;
+        text-decoration: none;
+        transition: all 0.3s;
+    }
+    .btn-change-account:hover {
+        background: #5a6268;
+        color: white;
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}
+
+{% block title %}
+<title>新增儲值 - DB3C ERP</title>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card create-card">
+                    <div class="card-body">
+                        <div class="form-header">
+                            <h4><i class="fa fa-plus-circle"></i> 新增儲值</h4>
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb">
+                                    <li class="breadcrumb-item">
+                                        <a href="">首頁</a>
+                                    </li>
+                                    <li class="breadcrumb-item">
+                                        <a href="{% url 'business:topup_list' %}">儲值列表</a>
+                                    </li>
+                                    <li class="breadcrumb-item active">新增儲值</li>
+                                </ol>
+                            </nav>
+                        </div>
+
+                        <!-- 訊息提示 -->
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <!-- 權限警告 -->
+                        <div class="warning-box">
+                            <i class="fa fa-exclamation-triangle fa-2x"></i>
+                            <strong>權限限制：</strong>
+                            此功能僅限<strong>總公司管理員</strong>使用。代理商、分銷商及其他角色無法使用此功能。
+                        </div>
+
+                        {% if selected_account %}
+                        <!-- 選中的帳號資訊 -->
+                        <div class="account-info-box">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h5 class="mb-2"><i class="fa fa-user-circle"></i> 儲值帳號資訊</h5>
+                                </div>
+                                <a href="{% url 'accounts:account_list' %}" class="btn-change-account">
+                                    <i class="fa fa-exchange-alt"></i> 更換帳號
+                                </a>
+                            </div>
+                            
+                            <div class="account-name">
+                                <i class="fa fa-user"></i> {{ selected_account.fullname|default:selected_account.username }}
+                            </div>
+                            
+                            <div class="info-row">
+                                <span class="info-label"><i class="fa fa-envelope"></i> 電子郵件：</span>
+                                <span class="info-value">{{ selected_account.email }}</span>
+                            </div>
+                            
+                            <div class="info-row">
+                                <span class="info-label"><i class="fa fa-id-badge"></i> 帳號：</span>
+                                <span class="info-value">{{ selected_account.username }}</span>
+                            </div>
+                            
+                            <div class="info-row">
+                                <span class="info-label"><i class="fa fa-user-tag"></i> 角色：</span>
+                                <span class="info-value">
+                                    {% if selected_account.role == 'HEADQUARTER' %}
+                                        <span class="badge bg-danger">{{ selected_account.get_role_display }}</span>
+                                    {% elif selected_account.role == 'AGENT' %}
+                                        <span class="badge bg-primary">{{ selected_account.get_role_display }}</span>
+                                    {% elif selected_account.role == 'DISTRIBUTOR' %}
+                                        <span class="badge bg-secondary">{{ selected_account.get_role_display }}</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            
+                            {% if selected_account.company %}
+                            <div class="info-row">
+                                <span class="info-label"><i class="fa fa-building"></i> 公司：</span>
+                                <span class="info-value">{{ selected_account.company }}</span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if selected_account.parent %}
+                            <div class="info-row">
+                                <span class="info-label"><i class="fa fa-user-tie"></i> 上級用戶：</span>
+                                <span class="info-value">{{ selected_account.parent.fullname|default:selected_account.parent.username }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 表單 -->
+                        <form method="post" id="topupForm">
+                            {% csrf_token %}
+                            
+                            <!-- 隱藏的帳號欄位 -->
+                            {{ form.account }}
+
+                            <!-- 儲值金額 -->
+                            <div class="form-group mb-4">
+                                <label for="{{ form.amount.id_for_label }}" class="form-label required-field">
+                                    儲值金額
+                                </label>
+                                {{ form.amount }}
+                                {% if form.amount.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.amount.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                {% if form.amount.help_text %}
+                                    <small class="form-text text-muted">
+                                        {{ form.amount.help_text }}
+                                    </small>
+                                {% endif %}
+                            </div>
+
+                            <!-- 備註 -->
+                            <div class="form-group mb-4">
+                                <label for="{{ form.remark.id_for_label }}" class="form-label">
+                                    備註
+                                </label>
+                                {{ form.remark }}
+                                {% if form.remark.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.remark.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                {% if form.remark.help_text %}
+                                    <small class="form-text text-muted">
+                                        {{ form.remark.help_text }}
+                                    </small>
+                                {% endif %}
+                            </div>
+
+                            <!-- 表單錯誤訊息 -->
+                            {% if form.non_field_errors %}
+                                <div class="alert alert-danger">
+                                    {% for error in form.non_field_errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            <!-- 按鈕區 -->
+                            <div class="form-group">
+                                <hr class="my-4">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'business:topup_list' %}" class="btn btn-secondary">
+                                        <i class="fa fa-times"></i> 取消
+                                    </a>
+                                    <button type="submit" class="btn btn-primary btn-submit">
+                                        <i class="fa fa-check"></i> 確認儲值
+                                    </button>
+                                </div>
+                            </div>
+
+                        </form>
+
+                        {% else %}
+                        <!-- 未選擇帳號的提示 -->
+                        <div class="alert alert-warning">
+                            <h5><i class="fa fa-exclamation-circle"></i> 尚未選擇儲值帳號</h5>
+                            <p class="mb-3">請先從帳戶列表中選擇要儲值的帳號。</p>
+                            <a href="{% url 'accounts:account_list' %}" class="btn btn-primary">
+                                <i class="fa fa-list"></i> 前往帳戶列表
+                            </a>
+                        </div>
+                        {% endif %}
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scriptcontent %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('topupForm');
+        const amountInput = document.querySelector('input[name="amount"]');
+        
+        if (form) {
+            // 金額輸入格式化
+            if (amountInput) {
+                amountInput.addEventListener('blur', function() {
+                    let value = parseFloat(this.value);
+                    if (!isNaN(value) && value > 0) {
+                        this.value = Math.floor(value);
+                    }
+                });
+            }
+
+            // 表單提交確認
+            form.addEventListener('submit', function(e) {
+                const amount = amountInput.value;
+                {% if selected_account %}
+                const accountName = '{{ selected_account.fullname|default:selected_account.username|escapejs }}';
+                {% else %}
+                const accountName = '未知帳號';
+                {% endif %}
+                
+                if (!amount || parseFloat(amount) <= 0) {
+                    e.preventDefault();
+                    alert('請填寫完整的必填欄位');
+                    return false;
+                }
+
+                const confirmed = confirm(
+                    `確認要為「${accountName}」儲值 $${parseFloat(amount).toLocaleString()} 嗎？\n\n此操作將立即生效並無法撤銷。`
+                );
+                
+                if (!confirmed) {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        // 卡片動畫
+        const card = document.querySelector('.create-card');
+        if (card) {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            
+            setTimeout(function() {
+                card.style.transition = 'all 0.5s ease';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, 100);
+        }
+    });
+</script>
+{% endblock %}

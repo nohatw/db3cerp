@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}<title>產品分類列表 - DB3C ERP</title>{% endblock %}
+
+{% block css %}
+<style>
+    .category-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+    }
+    
+    .category-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .product-count-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <!-- 頁面標題 -->
+        <div class="page-header d-print-none">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h2 class="page-title">
+                        <i class="ti ti-category"></i>
+                        產品分類管理
+                    </h2>
+                    <div class="text-muted mt-1">
+                        管理產品分類資訊
+                    </div>
+                </div>
+                <div class="col-auto ms-auto d-print-none">
+                    <a href="{% url 'products:category_create' %}" class="btn btn-primary">
+                        <i class="ti ti-plus"></i>
+                        新增分類
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 統計卡片 -->
+        <div class="stats-card">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center">
+                        <i class="ti ti-category" style="font-size: 48px; opacity: 0.8;"></i>
+                        <div class="ms-3">
+                            <h3 class="mb-0">{{ total_categories }}</h3>
+                            <small>分類總數</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center">
+                        <i class="ti ti-list" style="font-size: 48px; opacity: 0.8;"></i>
+                        <div class="ms-3">
+                            <h3 class="mb-0">{{ categories|length }}</h3>
+                            <small>本頁顯示</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center">
+                        <i class="ti ti-search" style="font-size: 48px; opacity: 0.8;"></i>
+                        <div class="ms-3">
+                            <h3 class="mb-0">{{ search_query|default:"全部" }}</h3>
+                            <small>搜尋條件</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 搜尋欄 -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-10">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="ti ti-search"></i>
+                            </span>
+                            <input 
+                                type="text" 
+                                name="q" 
+                                class="form-control" 
+                                placeholder="搜尋分類名稱或描述..." 
+                                value="{{ search_query }}"
+                            >
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="ti ti-search"></i> 搜尋
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 分類列表 -->
+        <div class="row row-cards">
+            {% if categories %}
+                {% for category in categories %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card category-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h3 class="card-title mb-0">
+                                    {{ category.name }}
+                                </h3>
+                                <span class="product-count-badge">
+                                    {{ category.active_product_count }} 個產品
+                                </span>
+                            </div>
+                            
+                            {% if category.description %}
+                            <p class="text-muted mb-3">
+                                {{ category.description|truncatewords:20 }}
+                            </p>
+                            {% else %}
+                            <p class="text-muted mb-3">
+                                <i>尚無描述</i>
+                            </p>
+                            {% endif %}
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted">
+                                        <i class="ti ti-sort-ascending"></i>
+                                        排序：{{ category.sort_order }}
+                                    </small>
+                                </div>
+                                <div class="btn-group btn-group-sm" onclick="event.stopPropagation();">
+                                    <a href="{% url 'products:category_update' pk=category.id %}" 
+                                       class="btn btn-outline-secondary">
+                                        <i class="ti ti-edit"></i> 編輯
+                                    </a>
+                                    <a href="{% url 'products:category_delete' pk=category.id %}" 
+                                       class="btn btn-outline-danger">
+                                        <i class="ti ti-trash"></i> 刪除
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body text-center py-5">
+                            <i class="ti ti-category-off" style="font-size: 64px; color: #ccc;"></i>
+                            <h3 class="mt-3 text-muted">尚無產品分類</h3>
+                            <p class="text-muted">
+                                {% if search_query %}
+                                找不到符合「{{ search_query }}」的分類
+                                {% else %}
+                                請點擊「新增分類」開始建立
+                                {% endif %}
+                            </p>
+                            <a href="{% url 'products:category_create' %}" class="btn btn-primary">
+                                <i class="ti ti-plus"></i> 新增分類
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- 分頁 -->
+        {% if is_paginated %}
+        <div class="d-flex justify-content-center mt-4">
+            <ul class="pagination">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}">
+                        <i class="ti ti-chevrons-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}">
+                        <i class="ti ti-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}">
+                            {{ num }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}">
+                        <i class="ti ti-chevron-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}">
+                        <i class="ti ti-chevrons-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

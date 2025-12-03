@@ -1,0 +1,895 @@
+{% extends 'base.html' %}
+{% load static %} 
+{% load humanize %}
+{% load currency %}
+
+{% block title %}<title>結帳 - DB3C ERP</title>{% endblock %}
+
+{% block css %}
+<style>
+    .checkout-container {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 30px;
+        margin-bottom: 20px;
+    }
+    
+    .checkout-title {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 20px;
+        color: #333;
+        display: flex;
+        align-items: center;
+    }
+    
+    .checkout-title i {
+        margin-right: 10px;
+        color: #667eea;
+    }
+    
+    /* 訂單摘要卡片 */
+    .order-summary-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        padding: 25px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
+    
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+        font-size: 16px;
+    }
+    
+    .summary-row:last-child {
+        margin-bottom: 0;
+    }
+    
+    .summary-row.total {
+        font-size: 22px;
+        font-weight: bolder;
+        padding-top: 20px;
+        border-top: 2px solid rgba(255,255,255,0.3);
+        margin-top: 20px;
+    }
+    
+    /* 餘額顯示 */
+    .balance-info {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .balance-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-size: 16px;
+    }
+    
+    .balance-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .balance-value {
+        font-weight: 700;
+    }
+    
+    .balance-value.positive {
+        color: #28a745;
+    }
+    
+    .balance-value.negative {
+        color: #dc3545;
+    }
+    
+    /* 表單區域 */
+    .form-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .form-section-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: #333;
+    }
+    
+    /* ✅ 選中客戶顯示卡片 */
+    .selected-client-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        position: relative;
+    }
+    
+    .selected-client-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .client-details {
+        flex: 1;
+    }
+    
+    .client-name {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    
+    .client-role {
+        font-size: 14px;
+        opacity: 0.9;
+        margin-bottom: 10px;
+    }
+    
+    .client-balance {
+        font-size: 16px;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 15px;
+        border-radius: 20px;
+        display: inline-block;
+    }
+    
+    .btn-cancel-selection {
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid #fff;
+        color: #fff;
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-weight: 600;
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+    
+    .btn-cancel-selection:hover {
+        background: #fff;
+        color: #667eea;
+    }
+    
+    .btn-select-client {
+        background: transparent;
+        border: 2px solid #667eea;
+        color: #667eea;
+        padding: 12px 30px;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+    
+    .btn-select-client:hover {
+        background: #667eea;
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    /* 訂單項目列表 */
+    .order-items-list {
+        margin-bottom: 20px;
+    }
+    
+    .order-item {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .item-info {
+        flex: 1;
+    }
+    
+    .item-name {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .item-details {
+        font-size: 14px;
+        color: #666;
+    }
+    
+    .item-price {
+        text-align: right;
+    }
+    
+    .item-quantity {
+        color: #999;
+        font-size: 14px;
+    }
+    
+    .item-subtotal {
+        font-size: 18px;
+        font-weight: 700;
+        color: #667eea;
+    }
+    
+    /* 按鈕 */
+    .btn-submit-order {
+        width: 100%;
+        padding: 15px;
+        font-size: 18px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: #fff;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+    
+    .btn-submit-order:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-submit-order:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .btn-back-cart {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        background: #fff;
+        border: 2px solid #667eea;
+        color: #667eea;
+        border-radius: 8px;
+        transition: all 0.3s;
+        margin-bottom: 15px;
+    }
+    
+    .btn-back-cart:hover {
+        background: #667eea;
+        color: #fff;
+    }
+
+    #reservationBtn {
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+        border: none;
+        color: #fff;
+        font-size: 16px;
+        transition: all 0.3s ease;
+    }
+    
+    #reservationBtn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(255, 193, 7, 0.4);
+        background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+    }
+    
+    #reservationBtn i {
+        margin-right: 8px;
+        font-size: 18px;
+    }
+    
+    /* 響應式調整 */
+    @media (max-width: 768px) {
+        #reservationBtn {
+            font-size: 14px;
+            padding: 12px 15px !important;
+        }
+    }
+    
+    /* 警告訊息 */
+    .alert-custom {
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .alert-custom i {
+        margin-right: 10px;
+        font-size: 20px;
+    }
+    
+    .alert-warning-custom {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        color: #856404;
+    }
+    
+    .alert-danger-custom {
+        background: #f8d7da;
+        border-left: 4px solid #dc3545;
+        color: #721c24;
+    }
+    
+    .alert-info-custom {
+        background: #d1ecf1;
+        border-left: 4px solid #17a2b8;
+        color: #0c5460;
+    }
+    
+    .alert-success-custom {
+        background: #d4edda;
+        border-left: 4px solid #28a745;
+        color: #155724;
+    }
+
+    /* ✅ 付款方式按鈕樣式 */
+    .btn-check {
+        position: absolute;
+        clip: rect(0,0,0,0);
+        pointer-events: none;
+    }
+    
+    .payment-btn {
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.3s ease;
+    }
+    
+    .payment-btn:hover {
+        border-color: #667eea !important;
+        background-color: #f8f9ff !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2) !important;
+    }
+    
+    .payment-btn i {
+        transition: transform 0.3s ease;
+    }
+    
+    .payment-btn:hover i {
+        transform: scale(1.1);
+    }
+    
+    /* 選中狀態 */
+    .btn-check:checked + .payment-btn {
+        border-color: #667eea !important;
+        background-color: #f0f4ff !important;
+        color: #667eea !important;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3) !important;
+    }
+    
+    /* 響應式 */
+    @media (max-width: 768px) {
+        .checkout-container {
+            padding: 15px;
+        }
+        
+        .checkout-title {
+            font-size: 20px;
+        }
+        
+        .order-item {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .item-price {
+            width: 100%;
+            text-align: left;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+        }
+        
+        .summary-row.total {
+            font-size: 24px;
+        }
+        
+        .selected-client-info {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .btn-cancel-selection {
+            margin-top: 15px;
+            width: 100%;
+            text-align: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-fluid">
+        <!-- 麵包屑 -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'accounts:dashboard' %}"><i class="fa fa-home"></i></a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'products:catalogue_list' %}">產品目錄</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'business:cart_view' %}">購物車</a></li>
+                    <li class="breadcrumb-item active">結帳</li>
+                </ol>
+            </div>
+        </div>
+
+        <form method="post" action="{% url 'business:submit_order' %}" id="checkoutForm">
+            {% csrf_token %}
+            
+            <div class="row">
+                <!-- 左側：訂單詳情 -->
+                <div class="col-lg-8">
+                    <div class="checkout-container">
+                        <h3 class="checkout-title">
+                            <i class="fa fa-file-invoice"></i>
+                            訂單詳情
+                        </h3>
+
+                        <!-- ✅ 為他人下單區域（僅總公司管理員） -->
+                        {% if can_order_for_others %}
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fa fa-user-friends"></i>
+                                訂單帳號
+                            </div>
+                            
+                            {% if order_for_account %}
+                            <!-- 已選中客戶 -->
+                            <div class="selected-client-card">
+                                <div class="selected-client-info">
+                                    <div class="client-details">
+                                        <div class="client-name">
+                                            <i class="fa fa-user-circle"></i>
+                                            {{ order_for_account.fullname|default:order_for_account.username }}
+                                        </div>
+                                        <div class="client-role">
+                                            {{ order_for_account.get_role_display }}
+                                        </div>
+                                        <div class="client-balance">
+                                            <i class="fa fa-wallet"></i>
+                                            儲值餘額：${{ user_balance|currency }}
+                                        </div>
+                                    </div>
+                                    <button type="button" 
+                                            class="btn-cancel-selection" 
+                                            id="cancelClientBtn">
+                                        <i class="fa fa-times"></i> 取消選擇
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="alert-success-custom p-3">
+                                <i class="fa fa-check-circle"></i>
+                                <div>
+                                    已選擇為「{{ order_for_account.fullname|default:order_for_account.username }}」下單。<br>
+                                    訂單將使用此客戶的儲值餘額進行支付。
+                                </div>
+                            </div>
+                            {% else %}
+                            <!-- 未選中客戶 -->
+                            <div class="alert-info-custom p-3">
+                                
+                                <div><i class="fa fa-info-circle"></i> 
+                                    您是總公司管理員，可以為其他帳號下單。<br>
+                                    <strong>目前將為您自己下單。</strong>
+                                </div>
+                            </div>
+                            <div class="text-center mt-3">
+                                <a href="{% url 'accounts:account_list' %}" class="btn-select-client">
+                                    <i class="fa fa-users"></i>
+                                    選擇要下單的客戶
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <!-- 訂單項目列表 -->
+                        <div class="order-items-list">
+                            <div class="form-section-title">
+                                <i class="fa fa-shopping-bag"></i>
+                                訂單項目
+                            </div>
+                            {% for item in cart_items %}
+                            <div class="order-item">
+                                <div class="item-info">
+                                    <div class="item-name">{{ item.product_name }}</div>
+                                    <div class="item-details">
+                                        <span class="badge bg-info me-2">{{ item.product_type }}</span>
+                                        {{ item.variant_name }}
+                                        <span class="text-muted ms-2">
+                                            • {{ item.days }}天 • {{ item.data_amount }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="item-price">
+                                    <div class="item-quantity">單價 ${{ item.unit_price|currency }} × {{ item.quantity }}</div>
+                                    <div class="item-subtotal">TWD ${{ item.subtotal|currency }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- 付款方式 -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fa fa-credit-card"></i>
+                                付款方式
+                            </div>
+                            <div class="row g-3">
+                                {% for value, label in payment_types %}
+                                <div class="col-md-6">
+                                    <input type="radio" 
+                                           class="btn-check payment-radio" 
+                                           name="payment_type" 
+                                           id="payment_{{ value }}" 
+                                           value="{{ value }}"
+                                           {% if value == 'TOPUP' %}checked{% endif %}
+                                           autocomplete="off">
+                                    <label class="btn btn-soft btn-outline-info w-100 payment-btn p-2" 
+                                           for="payment_{{ value }}"
+                                           style="padding: 10px; border: 2px solid #ddd; border-radius: 8px; transition: all 0.3s;">
+                                        <div style="display: flex; flex-direction: column; align-items: center;">
+                                            {% if value == 'TOPUP' %}
+                                            <i class="fa fa-wallet fa-2x mb-2" style="color: #667eea;"></i>
+                                            <strong>{{ label }}</strong>
+                                            <small class="text-muted mt-1">使用儲值餘額支付</small>
+                                            {% elif value == 'DIRECT_BANK_TRANSFER' %}
+                                            <strong>{{ label }}</strong>
+                                            <small class="text-muted mt-1">匯款、ATM轉帳</small>
+                                            {% elif value == 'CREDIT_CARD' %}
+                                            <i class="fa fa-credit-card fa-2x mb-2" style="color: #ffc107;"></i>
+                                            <strong>{{ label }}</strong>
+                                            <small class="text-muted mt-1">線上刷卡支付</small>
+                                            {% elif value == 'CASH' %}
+                                            <i class="fa fa-money-bill-wave fa-2x mb-2" style="color: #17a2b8;"></i>
+                                            <strong>{{ label }}</strong>
+                                            <small class="text-muted mt-1">現金付款</small>
+                                            {% else %}
+                                            <i class="fa fa-file-invoice-dollar fa-2x mb-2" style="color: #6c757d;"></i>
+                                            <strong>{{ label }}</strong>
+                                            {% endif %}
+                                        </div>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- 訂單來源選擇（僅總公司管理員可選）-->
+                        {% if can_order_for_others %}
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fa fa-map-marker-alt"></i>
+                                訂單來源
+                            </div>
+                            <select name="order_source" class="form-select">
+                                {% for value, label in order_sources %}
+                                <option value="{{ value }}" {% if value == 'ERP' %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted mt-2 d-block">
+                                <i class="fa fa-info-circle"></i>
+                                請選擇此訂單的來源渠道（總公司管理員可見）
+                            </small>
+                        </div>
+                        <!-- {% else %}
+                        <input type="hidden" name="order_source" value="LINE"> -->
+                        {% endif %}
+
+                        <!-- 訂單備註 -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="fa fa-sticky-note"></i>
+                                訂單備註（選填）
+                            </div>
+                            <textarea name="remark" 
+                                      class="form-control" 
+                                      rows="3" 
+                                      placeholder="有什麼特殊需求或備註嗎？"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右側：訂單摘要 -->
+                <div class="col-lg-4">
+                    <div class="checkout-container">
+                        <h4 class="mb-3" style="font-weight: 600;">
+                            <i class="fa fa-receipt" style="color: #667eea;"></i>
+                            訂單摘要
+                        </h4>
+                        
+                        <div class="order-summary-card">
+                            <div class="summary-row">
+                                <span>商品數量</span>
+                                <strong>{{ cart_count }} 件</strong>
+                            </div>
+                            <div class="summary-row total">
+                                <span>訂單總計</span>
+                                <span id="orderTotal">TWD ${{ cart_total|currency }}</span>
+                            </div>
+                        </div>
+
+                        <!-- 餘額資訊 -->
+                        <div class="balance-info" id="balanceInfo">
+                            <div class="balance-item">
+                                <span>
+                                    {% if order_for_account %}
+                                        客戶儲值餘額
+                                    {% else %}
+                                        當前儲值餘額
+                                    {% endif %}
+                                </span>
+                                <span class="balance-value" id="currentBalance">
+                                    ${{ user_balance|currency }}
+                                </span>
+                            </div>
+                            <div class="balance-item" id="orderAmountRow">
+                                <span>訂單金額</span>
+                                <span class="balance-value">
+                                    -${{ cart_total|currency }}
+                                </span>
+                            </div>
+                            <div class="balance-item" id="afterBalanceRow" style="padding-top: 15px; border-top: 1px solid #ddd; margin-top: 15px;">
+                                <span><strong>支付後餘額</strong></span>
+                                <span class="balance-value {% if balance_sufficient %}positive{% else %}negative{% endif %}" 
+                                      id="afterBalance">
+                                    ${{ after_balance|currency }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- 餘額不足警告 -->
+                        {% if not balance_sufficient %}
+                        <div class="alert-danger-custom p-3" id="insufficientAlert">
+                            <i class="fa fa-exclamation-triangle"></i>
+                            <div>
+                                <strong>儲值餘額不足！</strong><br>
+                                需要 ${{ cart_total|currency }}，但只有 ${{ user_balance|currency }}。<br>
+                                {% if can_order_for_others and not order_for_account %}
+                                    請選擇其他客戶、選擇其他付款方式，或聯繫管理員儲值。
+                                {% else %}
+                                    請選擇其他付款方式或聯繫管理員儲值。
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- 操作按鈕區域 -->
+                        <div class="row g-2 mt-3">
+                            <!-- 返回購物車按鈕 -->
+                            <div class="col-12 mb-4">
+                                <a href="{% url 'business:cart_view' %}" class="btn-back-cart">
+                                    <i class="fa fa-arrow-left"></i>
+                                    返回購物車
+                                </a>
+                            </div>
+                            
+                            <!-- 預訂按鈕（總公司管理員可用） -->
+                          
+                            <div class="col-12 col-md-12 mb-3">
+                                <button type="button" 
+                                        class="btn btn-soft btn-outline-warning w-100 p-3" 
+                                        id="reservationBtn"
+                                        style="font-weight: 600; border-radius: 8px; transition: all 0.3s;">
+                                    <i class="fa fa-calendar-check"></i>
+                                    建立預訂（不扣庫存、不扣款）
+                                </button>
+                            </div>
+                           
+                            
+                            <!-- ✅ 提交訂單按鈕 -->
+                            <div class="col-12 {% if is_headquarter %}col-md-6{% endif %}">
+                                <button type="submit" 
+                                        class="btn-submit-order" 
+                                        id="submitBtn"
+                                        {% if not balance_sufficient %}disabled{% endif %}>
+                                    <i class="fa fa-check-circle"></i>
+                                    {% if order_for_account %}
+                                        確認為「{{ order_for_account.fullname|default:order_for_account.username }}」下單
+                                    {% else %}
+                                        確認下單
+                                    {% endif %}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 購物須知 -->
+                        <div class="alert-info-custom mt-3 p-3">
+                            <i class="fa fa-info-circle"></i>
+                            <div>
+                                <strong>購物須知</strong>
+                                <ul style="margin: 10px 0 0 20px; padding: 0; list-style: disc;">
+                                    <li>確認後將立即扣款</li>
+                                    <li>訂單不可取消</li>
+                                    <li>如有問題請聯繫客服</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scriptcontent %}
+<script>
+    // CSRF Token
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+    const csrftoken = getCookie('csrftoken');
+    
+    // 總訂單金額
+    const orderTotal = {{ cart_total }};
+    
+    // 當前餘額
+    let currentBalance = {{ user_balance }};
+    
+    // 格式化數字（加千分位）
+    function formatCurrency(num) {
+        return num.toLocaleString('zh-TW', { minimumFractionDigits: 0 });
+    }
+    
+    // 付款方式按鈕樣式
+    document.querySelectorAll('.payment-btn').forEach(btn => {
+        const radio = document.getElementById(btn.getAttribute('for'));
+        
+        // 初始化樣式
+        if (radio.checked) {
+            btn.style.borderColor = '#667eea';
+            btn.style.backgroundColor = '#f0f4ff';
+            btn.style.color = '#667eea';
+            btn.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+        }
+        
+        // 點擊時更新樣式
+        btn.addEventListener('click', function() {
+            // 重置所有按鈕
+            document.querySelectorAll('.payment-btn').forEach(b => {
+                b.style.borderColor = '#ddd';
+                b.style.backgroundColor = '#fff';
+                b.style.color = '#333';
+                b.style.boxShadow = 'none';
+            });
+            
+            // 高亮選中的按鈕
+            this.style.borderColor = '#667eea';
+            this.style.backgroundColor = '#f0f4ff';
+            this.style.color = '#667eea';
+            this.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+        });
+    });
+    
+    // 監聽付款方式變更
+    document.querySelectorAll('input[name="payment_type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const submitBtn = document.getElementById('submitBtn');
+            const insufficientAlert = document.getElementById('insufficientAlert');
+            const balanceInfo = document.getElementById('balanceInfo');
+            const orderAmountRow = document.getElementById('orderAmountRow');
+            const afterBalanceRow = document.getElementById('afterBalanceRow');
+            
+            if (this.value === 'TOPUP') {
+                // ✅ 儲值支付：顯示餘額資訊
+                balanceInfo.style.display = 'block';
+                orderAmountRow.style.display = 'flex';
+                afterBalanceRow.style.display = 'flex';
+                
+                // 檢查餘額是否足夠
+                if (currentBalance >= orderTotal) {
+                    submitBtn.disabled = false;
+                    if (insufficientAlert) insufficientAlert.style.display = 'none';
+                } else {
+                    submitBtn.disabled = true;
+                    if (insufficientAlert) insufficientAlert.style.display = 'flex';
+                }
+            } else {
+                // ✅ 其他付款方式：隱藏餘額計算，顯示當前餘額
+                orderAmountRow.style.display = 'none';
+                afterBalanceRow.style.display = 'none';
+                balanceInfo.style.display = 'block';  // 保留顯示當前餘額
+                
+                // 不需要檢查餘額
+                submitBtn.disabled = false;
+                if (insufficientAlert) insufficientAlert.style.display = 'none';
+            }
+        });
+    });
+    
+    // 取消選擇客戶
+    const cancelClientBtn = document.getElementById('cancelClientBtn');
+    if (cancelClientBtn) {
+        cancelClientBtn.addEventListener('click', function() {
+            if (!confirm('確定要取消選擇客戶嗎？\n\n取消後將為您自己下單。')) {
+                return;
+            }
+            
+            // 顯示載入中
+            this.disabled = true;
+            this.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 處理中...';
+            
+            // 發送請求取消選擇
+            fetch('/accounts/cancel-client-selection/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 重新載入頁面
+                    location.reload();
+                } else {
+                    alert('取消失敗：' + (data.error || '未知錯誤'));
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fa fa-times"></i> 取消選擇';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('取消失敗，請稍後再試');
+                this.disabled = false;
+                this.innerHTML = '<i class="fa fa-times"></i> 取消選擇';
+            });
+        });
+    }
+    
+    // 預訂按鈕處理
+    const reservationBtn = document.getElementById('reservationBtn');
+    if (reservationBtn) {
+        reservationBtn.addEventListener('click', function() {
+            {% if order_for_account %}
+            const confirmMsg = `確定要為「{{ order_for_account.fullname|default:order_for_account.username }}」建立預訂嗎？\n\n📋 預訂資訊：\n• 訂單金額：${{ cart_total|currency }}\n• 訂單狀態：保留中（HOLDING）\n• 庫存狀態：不扣除\n• 儲值狀態：不扣款\n\n⚠️ 預訂訂單需在訂單詳情頁面進行後續操作：\n• 確認預訂：扣庫存、扣款、更新狀態\n• 取消預訂：刪除訂單`;
+            {% else %}
+            const confirmMsg = `確定要建立預訂嗎？\n\n📋 預訂資訊：\n• 訂單金額：${{ cart_total|currency }}\n• 訂單狀態：保留中（HOLDING）\n• 庫存狀態：不扣除\n• 儲值狀態：不扣款\n\n⚠️ 預訂訂單需在訂單詳情頁面進行後續操作：\n• 確認預訂：扣庫存、扣款、更新狀態\n• 取消預訂：刪除訂單`;
+            {% endif %}
+            
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+            
+            // 修改表單 action 並提交
+            const form = document.getElementById('checkoutForm');
+            form.action = '{% url "business:submit_reservation" %}';
+            form.submit();
+        });
+    }
+
+    // 提交訂單表單前確認
+    document.getElementById('checkoutForm').addEventListener('submit', function(e) {
+        // 如果是預訂，已經在 reservationBtn 處理過確認了
+        if (this.action.includes('submit-reservation')) {
+            return;
+        }
+        
+        {% if order_for_account %}
+        const confirmMsg = '確定要為「{{ order_for_account.fullname|default:order_for_account.username }}」提交訂單嗎？\n\n訂單金額：${{ cart_total|currency }}\n提交後將立即扣款並扣除庫存！';
+        {% else %}
+        const confirmMsg = '確定要提交訂單嗎？\n\n訂單金額：${{ cart_total|currency }}\n提交後將立即扣款並扣除庫存！';
+        {% endif %}
+        
+        if (!confirm(confirmMsg)) {
+            e.preventDefault();
+        }
+    });
+</script>
+{% endblock %}

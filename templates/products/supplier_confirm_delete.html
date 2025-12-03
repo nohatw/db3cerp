@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}<title>刪除供應商 - DB3C ERP</title>{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h3 class="card-title">
+                            <i class="ti ti-alert-triangle"></i>
+                            確認刪除供應商
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-4">
+                            您確定要刪除供應商「<strong>{{ object.name }}</strong>」嗎？
+                        </p>
+                        
+                        <div class="alert alert-warning">
+                            <strong>警告：</strong>此操作無法復原！
+                        </div>
+                        
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'products:supplier_list' %}" class="btn btn-secondary">
+                                    <i class="ti ti-x"></i> 取消
+                                </a>
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="ti ti-trash"></i> 確定刪除
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}<title>刪除產品 - DB3C ERP</title>{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <div class="row justify-content-center">
+            <div class="col-lg-7">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h3 class="card-title">
+                            <i class="ti ti-alert-triangle"></i>
+                            確認刪除產品
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        {% if has_variants %}
+                        <!-- 有變體，無法刪除 -->
+                        <div class="alert alert-danger">
+                            <h4 class="alert-title">
+                                <i class="ti ti-x-circle"></i> 無法刪除！
+                            </h4>
+                            <div class="text-muted">
+                                產品「<strong>{{ object.name }}</strong>」下還有 <strong>{{ variant_count }}</strong> 個變體。
+                                <br>請先刪除所有變體後再刪除此產品。
+                            </div>
+                        </div>
+
+                        <!-- 產品資訊卡片 -->
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <h4 class="card-title">產品資訊</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-2">
+                                    <div class="col-4 text-muted">產品名稱：</div>
+                                    <div class="col-8"><strong>{{ object.name }}</strong></div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-4 text-muted">產品分類：</div>
+                                    <div class="col-8">{{ object.category.name }}</div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-4 text-muted">產品狀態：</div>
+                                    <div class="col-8">
+                                        {% if object.status == 'ACTIVE' %}
+                                        <span class="badge bg-success">上架</span>
+                                        {% elif object.status == 'INACTIVE' %}
+                                        <span class="badge bg-secondary">下架</span>
+                                        {% else %}
+                                        <span class="badge bg-dark">封存</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-4 text-muted">變體數量：</div>
+                                    <div class="col-8">
+                                        <span class="badge bg-danger">{{ variant_count }}</span> 個
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-4 text-muted">建立時間：</div>
+                                    <div class="col-8">{{ object.created_at|date:"Y-m-d H:i" }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 操作提示 -->
+                        <div class="alert alert-info mt-3">
+                            <h4 class="alert-title">
+                                <i class="ti ti-info-circle"></i> 如何刪除此產品？
+                            </h4>
+                            <div class="text-muted">
+                                <ol class="mb-0">
+                                    <li>前往 <a href="{% url 'products:product_detail' object.pk %}" class="alert-link">產品詳情頁</a></li>
+                                    <li>逐一刪除所有變體（{{ variant_count }} 個）</li>
+                                    <li>返回此頁面再次嘗試刪除產品</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <!-- 按鈕 -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'products:product_list' %}" class="btn btn-secondary">
+                                <i class="ti ti-arrow-left"></i> 返回列表
+                            </a>
+                            <a href="{% url 'products:product_detail' object.pk %}" class="btn btn-primary">
+                                <i class="ti ti-eye"></i> 查看產品詳情
+                            </a>
+                        </div>
+
+                        {% else %}
+                        <!-- 無變體，可以刪除 -->
+                        <div class="alert alert-warning">
+                            <h4 class="alert-title">
+                                <i class="ti ti-alert-triangle"></i> 刪除確認
+                            </h4>
+                            <p class="mb-0">
+                                您確定要刪除產品「<strong>{{ object.name }}</strong>」嗎？
+                            </p>
+                        </div>
+
+                        <!-- 產品資訊卡片 -->
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <h4 class="card-title">產品資訊</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-2">
+                                    <div class="col-4 text-muted">產品名稱：</div>
+                                    <div class="col-8"><strong>{{ object.name }}</strong></div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-4 text-muted">產品分類：</div>
+                                    <div class="col-8">{{ object.category.name }}</div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-4 text-muted">產品狀態：</div>
+                                    <div class="col-8">
+                                        {% if object.status == 'ACTIVE' %}
+                                        <span class="badge bg-success">上架</span>
+                                        {% elif object.status == 'INACTIVE' %}
+                                        <span class="badge bg-secondary">下架</span>
+                                        {% else %}
+                                        <span class="badge bg-dark">封存</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-4 text-muted">變體數量：</div>
+                                    <div class="col-8">
+                                        <span class="badge bg-success">0</span> 個（無變體）
+                                    </div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-4 text-muted">建立時間：</div>
+                                    <div class="col-8">{{ object.created_at|date:"Y-m-d H:i" }}</div>
+                                </div>
+                                {% if object.description %}
+                                <div class="row">
+                                    <div class="col-4 text-muted">產品描述：</div>
+                                    <div class="col-8">{{ object.description|truncatewords:20 }}</div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- 刪除警告 -->
+                        <div class="alert alert-danger mt-3">
+                            <h4 class="alert-title">
+                                <i class="ti ti-alert-octagon"></i> 重要警告
+                            </h4>
+                            <ul class="mb-0">
+                                <li><strong>此操作無法復原！</strong></li>
+                                <li>產品刪除後，所有相關資料都會永久移除</li>
+                                <li>如果只是暫時不需要，建議改為「下架」狀態</li>
+                            </ul>
+                        </div>
+
+                        <!-- 刪除表單 -->
+                        <form method="post" class="mt-4">
+                            {% csrf_token %}
+                            <div class="d-flex justify-content-between align-items-center">
+                                <a href="{% url 'products:product_list' %}" class="btn btn-secondary">
+                                    <i class="ti ti-x"></i> 取消
+                                </a>
+                                <div>
+                                    <a href="{% url 'products:product_update' object.pk %}" class="btn btn-outline-primary me-2">
+                                        <i class="ti ti-edit"></i> 改為編輯
+                                    </a>
+                                    <button type="submit" class="btn btn-danger" onclick="return confirm('最後確認：真的要刪除產品「{{ object.name }}」嗎？')">
+                                        <i class="ti ti-trash"></i> 確定刪除
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.alert-title {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+.card-body .row {
+    align-items: center;
+}
+</style>
+{% endblock %}

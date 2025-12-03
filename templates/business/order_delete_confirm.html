@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+{% load currency %}
+
+{% block title %}<title>刪除訂單確認 - DB3C ERP</title>{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <!-- 頁面標題 -->
+        <div class="page-header d-print-none">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h2 class="page-title">
+                        <i class="ti ti-trash text-danger"></i>
+                        刪除訂單確認
+                    </h2>
+                </div>
+                <div class="col-auto">
+                    <a href="{% url 'business:order_detail' order.id %}" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left"></i> 返回訂單詳情
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h3 class="card-title mb-0">
+                            <i class="ti ti-alert-triangle"></i>
+                            警告：此操作無法復原
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        {% if deletable %}
+                        <!-- 訂單資訊 -->
+                        <div class="alert alert-warning">
+                            <h4 class="alert-heading">
+                                <i class="ti ti-info-circle"></i>
+                                您確定要刪除以下訂單嗎？
+                            </h4>
+                            <hr>
+                            <div class="mb-2">
+                                <strong>訂單編號：</strong>{{ order.id }}
+                            </div>
+                            <div class="mb-2">
+                                <strong>訂單狀態：</strong>
+                                <span class="badge bg-secondary">{{ order.get_status_display }}</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>訂單帳號：</strong>{{ order.account.fullname|default:order.account.username }}
+                            </div>
+                            <div class="mb-2">
+                                <strong>訂單金額：</strong>${{ order.total_amount|floatformat:0|intcomma }}
+                            </div>
+                            <div class="mb-2">
+                                <strong>支付方式：</strong>{{ order.get_payment_type_display }}
+                            </div>
+                            <div>
+                                <strong>建立時間：</strong>{{ order.created_at|date:"Y-m-d H:i:s" }}
+                            </div>
+                        </div>
+
+                        <!-- 刪除影響說明 -->
+                        <div class="mb-4">
+                            <h4 class="mb-3">
+                                <i class="ti ti-list-check"></i>
+                                刪除後的影響：
+                            </h4>
+                            
+                            <ul class="list-group">
+                                <li class="list-group-item">
+                                    <i class="ti ti-check text-success"></i>
+                                    訂單資料將被永久刪除
+                                </li>
+                                
+                                {% if will_restore_stock %}
+                                <li class="list-group-item">
+                                    <i class="ti ti-check text-success"></i>
+                                    庫存將會恢復（共 {{ order.order_products.count }} 項產品）
+                                </li>
+                                {% endif %}
+                                
+                                {% if will_refund %}
+                                <li class="list-group-item">
+                                    <i class="ti ti-check text-success"></i>
+                                    儲值金額將會退回（退款 ${{ order.total_amount|floatformat:0|intcomma }}）
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+
+                        <!-- 訂單產品列表 -->
+                        <div class="mb-4">
+                            <h4 class="mb-3">
+                                <i class="ti ti-package"></i>
+                                訂單產品（將恢復庫存）：
+                            </h4>
+                            
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>產品名稱</th>
+                                        <th class="text-center">數量</th>
+                                        <th class="text-end">單價</th>
+                                        <th class="text-end">小計</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in order.order_products.all %}
+                                    <tr>
+                                        <td>
+                                            {{ item.variant.name|default:"已下架商品" }}
+                                            <div class="text-muted small">
+                                                {{ item.product_code }}
+                                            </div>
+                                        </td>
+                                        <td class="text-center">{{ item.quantity }}</td>
+                                        <td class="text-end">${{ item.unit_price|floatformat:0|intcomma }}</td>
+                                        <td class="text-end">${{ item.amount|floatformat:0|intcomma }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- 確認表單 -->
+                        <form method="post" onsubmit="return confirmDelete();">
+                            {% csrf_token %}
+                            
+                            <div class="alert">
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="confirm-delete"
+                                           required>
+                                    <label class="form-check-label" for="confirm-delete">
+                                        我了解此操作無法復原，確定要刪除此訂單
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'business:order_detail' order.id %}" 
+                                   class="btn btn-secondary">
+                                    <i class="ti ti-x"></i> 取消
+                                </a>
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="ti ti-trash"></i> 確定刪除訂單
+                                </button>
+                            </div>
+                        </form>
+
+                        {% else %}
+                        <!-- 無法刪除 -->
+                        <div class="alert alert-danger">
+                            <h4 class="alert-heading">
+                                <i class="ti ti-ban"></i>
+                                無法刪除此訂單
+                            </h4>
+                            <hr>
+                            <p class="mb-0">
+                                只能刪除「待處理」或「已取消」狀態的訂單。<br>
+                                目前訂單狀態：<strong>{{ order.get_status_display }}</strong>
+                            </p>
+                        </div>
+                        
+                        <div class="text-center">
+                            <a href="{% url 'business:order_detail' order.id %}" class="btn btn-primary">
+                                <i class="ti ti-arrow-left"></i> 返回訂單詳情
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scriptcontent %}
+<script>
+function confirmDelete() {
+    return confirm('最後確認：您確定要刪除此訂單嗎？此操作無法復原！');
+}
+</script>
+{% endblock %}

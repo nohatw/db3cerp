@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+<title>{% if object %}編輯產品{% else %}新增產品{% endif %} - DB3C ERP</title>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <!-- 頁面標題 -->
+        <div class="page-header d-print-none">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h2 class="page-title">
+                        <i class="ti ti-box"></i>
+                        {% if object %}編輯產品{% else %}新增產品{% endif %}
+                    </h2>
+                    {% if object %}
+                    <div class="text-muted mt-1">
+                        <small>產品ID: #{{ object.id }} | 建立時間: {{ object.created_at|date:"Y-m-d H:i" }}</small>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-auto ms-auto">
+                    <a href="{% url 'products:product_list' %}" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left"></i> 返回列表
+                    </a>
+                    {% if object %}
+                    <a href="{% url 'products:product_detail' object.pk %}" class="btn btn-outline-primary">
+                        <i class="ti ti-eye"></i> 查看詳情
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 表單 -->
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">產品基本資訊</h3>
+                    </div>
+                    <div class="card-body">
+                        <form method="post">
+                            {% csrf_token %}
+                            
+                            {% if form.errors %}
+                            <div class="alert alert-danger alert-dismissible">
+                                <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
+                                <h4 class="alert-title"><i class="ti ti-alert-circle"></i> 表單驗證錯誤</h4>
+                                <ul class="mb-0">
+                                    {% for field in form %}
+                                        {% for error in field.errors %}
+                                        <li><strong>{{ field.label }}</strong>：{{ error }}</li>
+                                        {% endfor %}
+                                    {% endfor %}
+                                    {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- 產品名稱 -->
+                            <div class="mb-3">
+                                <label class="form-label required">產品名稱</label>
+                                <input type="text" 
+                                       class="form-control {% if form.name.errors %}is-invalid{% endif %}" 
+                                       name="name" 
+                                       value="{{ form.name.value|default:'' }}"
+                                       placeholder="例如：日本 eSIM 卡"
+                                       maxlength="200"
+                                       required>
+                                {% if form.name.errors %}
+                                <div class="invalid-feedback">{{ form.name.errors.0 }}</div>
+                                {% else %}
+                                <small class="form-hint">產品的顯示名稱，最多 200 字元</small>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- 產品分類 -->
+                            <div class="mb-3">
+                                <label class="form-label required">產品分類</label>
+                                <select class="form-select {% if form.category.errors %}is-invalid{% endif %}" 
+                                        name="category" 
+                                        required>
+                                    <option value="">-- 請選擇分類 --</option>
+                                    {% for category in categories %}
+                                    <option value="{{ category.id }}" 
+                                            {% if form.category.value == category.id or form.category.value|stringformat:"s" == category.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ category.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% if form.category.errors %}
+                                <div class="invalid-feedback">{{ form.category.errors.0 }}</div>
+                                {% else %}
+                                <small class="form-hint">
+                                    產品所屬分類
+                                    {% if categories|length == 0 %}
+                                    <span class="text-danger">（目前沒有可用分類，請先建立分類）</span>
+                                    {% endif %}
+                                </small>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- 產品狀態 -->
+                            <div class="mb-3">
+                                <label class="form-label required">產品狀態</label>
+                                <div class="form-selectgroup">
+                                    {% for value, label in product_statuses %}
+                                    <label class="form-selectgroup-item">
+                                        <input type="radio" 
+                                               name="status" 
+                                               value="{{ value }}" 
+                                               class="form-selectgroup-input"
+                                               {% if form.status.value == value %}checked{% endif %}
+                                               {% if not form.status.value and value == 'INACTIVE' %}checked{% endif %}>
+                                        <span class="form-selectgroup-label">
+                                            {% if value == 'ACTIVE' %}
+                                            <span class="badge bg-success me-1">●</span> {{ label }}
+                                            {% elif value == 'INACTIVE' %}
+                                            <span class="badge bg-secondary me-1">●</span> {{ label }}
+                                            {% elif value == 'ARCHIVED' %}
+                                            <span class="badge bg-dark me-1">●</span> {{ label }}
+                                            {% else %}
+                                            {{ label }}
+                                            {% endif %}
+                                        </span>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                                <small class="form-hint">
+                                    <strong>上架</strong>：前台顯示 | <strong>下架</strong>：前台隱藏 | <strong>封存</strong>：歷史記錄
+                                </small>
+                            </div>
+                            
+                            <!-- 產品描述 -->
+                            <div class="mb-3">
+                                <label class="form-label">產品描述</label>
+                                <textarea class="form-control {% if form.description.errors %}is-invalid{% endif %}" 
+                                          name="description" 
+                                          rows="6"
+                                          placeholder="輸入產品的詳細描述、特色、使用說明等...">{{ form.description.value|default:'' }}</textarea>
+                                {% if form.description.errors %}
+                                <div class="invalid-feedback">{{ form.description.errors.0 }}</div>
+                                {% else %}
+                                <small class="form-hint">產品的詳細說明，支援多行文字</small>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- 排序 -->
+                            <div class="mb-3">
+                                <label class="form-label">排序順序</label>
+                                <input type="number" 
+                                       class="form-control {% if form.sort_order.errors %}is-invalid{% endif %}" 
+                                       name="sort_order" 
+                                       value="{{ form.sort_order.value|default:0 }}"
+                                       min="0"
+                                       step="1">
+                                {% if form.sort_order.errors %}
+                                <div class="invalid-feedback">{{ form.sort_order.errors.0 }}</div>
+                                {% else %}
+                                <small class="form-hint">數字越小越靠前顯示，預設為 0</small>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- 提交按鈕 -->
+                            <hr class="my-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <a href="{% url 'products:product_list' %}" class="btn btn-link">
+                                    <i class="ti ti-x"></i> 取消
+                                </a>
+                                <div>
+                                    {% if object %}
+                                    <a href="{% url 'products:product_delete' object.pk %}" 
+                                       class="btn btn-outline-danger me-2"
+                                       onclick="return confirm('確定要刪除此產品嗎？此操作無法復原！')">
+                                        <i class="ti ti-trash"></i> 刪除
+                                    </a>
+                                    {% endif %}
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="ti ti-device-floppy"></i>
+                                        {% if object %}更新產品{% else %}建立產品{% endif %}
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                {% if object %}
+                <!-- 相關資訊卡片 -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h3 class="card-title">相關資訊</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <span class="text-muted">產品ID：</span>
+                                    <strong>{{ object.id }}</strong>
+                                </div>
+                                <div class="mb-2">
+                                    <span class="text-muted">建立時間：</span>
+                                    <strong>{{ object.created_at|date:"Y-m-d H:i:s" }}</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <span class="text-muted">最後更新：</span>
+                                    <strong>{{ object.updated_at|date:"Y-m-d H:i:s" }}</strong>
+                                </div>
+                                <div class="mb-2">
+                                    <span class="text-muted">變體數量：</span>
+                                    <a href="{% url 'products:product_detail' object.pk %}">
+                                        <strong>查看詳情</strong>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作提示 -->
+                <div class="alert alert-info mt-3">
+                    <h4 class="alert-title"><i class="ti ti-info-circle"></i> 下一步操作</h4>
+                    <div class="text-muted">
+                        產品建立後，您可以：
+                        <ul class="mb-0 mt-2">
+                            <li>前往 <a href="{% url 'products:product_detail' object.pk %}" class="alert-link">產品詳情頁</a> 查看完整資訊</li>
+                            <li>新增產品變體（Variant）來設定不同規格和價格</li>
+                            <li>為變體建立庫存（Stock）來管理實際可銷售數量</li>
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.form-selectgroup {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.form-selectgroup-item {
+    flex: 1;
+    min-width: 150px;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,685 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}<title>卡號管理 - {{ order_product.variant.name }} - DB3C ERP</title>{% endblock %}
+
+{% block css %}
+<style>
+    .code-input {
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+    }
+    
+    .code-row {
+        transition: background-color 0.2s;
+    }
+    
+    .code-row:hover {
+        background-color: #f8f9fa;
+    }
+    
+    /* ✅ 新增：活動中的輸入框樣式 */
+    .code-input.active-scan {
+        border: 2px solid #0d6efd;
+        background-color: #e7f1ff;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .filled-badge {
+        background: #28a745;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+    
+    .empty-badge {
+        background: #dc3545;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+    
+    .stats-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <!-- 頁面標題 -->
+        <div class="page-header d-print-none">
+            <div class="row align-items-center">
+                <div class="col">
+                    <div class="page-pretitle">
+                        <a href="{% url 'business:order_detail' pk=order_product.order.id %}">
+                            訂單 #{{ order_product.order.id }}
+                        </a>
+                        /
+                        <a href="{% url 'business:order_product_detail' order_id=order_product.order.id product_id=order_product.id %}">
+                            產品詳情
+                        </a>
+                    </div>
+                    <h2 class="page-title">
+                        <i class="ti ti-credit-card"></i>
+                        卡號管理：{{ order_product.variant.name }}
+                    </h2>
+                </div>
+                <div class="col-auto ms-auto d-print-none">
+                    <a href="{% url 'business:order_product_detail' order_id=order_product.order.id product_id=order_product.id %}" 
+                       class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left"></i> 返回產品詳情
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-12">
+                <!-- 統計資訊 -->
+                <div class="stats-card">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <div class="mb-2">
+                                <i class="ti ti-credit-card" style="font-size: 24px; color: #0d6efd;"></i>
+                            </div>
+                            <h3 class="mb-0">{{ total_codes }}</h3>
+                            <small class="text-muted">總卡號數</small>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-2">
+                                <i class="ti ti-check-circle" style="font-size: 24px; color: #28a745;"></i>
+                            </div>
+                            <h3 class="mb-0 text-success">{{ filled_codes }}</h3>
+                            <small class="text-muted">已填寫</small>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-2">
+                                <i class="ti ti-alert-circle" style="font-size: 24px; color: #dc3545;"></i>
+                            </div>
+                            <h3 class="mb-0 text-danger">{{ empty_codes }}</h3>
+                            <small class="text-muted">未填寫</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ✅ 新增：掃描模式提示 -->
+                {% if is_headquarter %}
+                <div class="alert alert-info">
+                    <div class="d-flex align-items-center">
+                        <i class="ti ti-scan me-2" style="font-size: 24px;"></i>
+                        <div>
+                            <strong>掃描槍使用說明：</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>頁面載入後，會自動聚焦到第一個未填寫的卡號欄位（藍色邊框）</li>
+                                <li>使用掃描槍掃描卡號，會自動填入當前聚焦的欄位</li>
+                                <li>填入後會自動跳到下一個未填寫的欄位</li>
+                                <li>如需修改已填寫的卡號，請用滑鼠點擊該欄位後再掃描</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- ✅ 新增：CSV 批量匯入區塊 -->
+                {% if is_headquarter %}
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="ti ti-file-upload"></i> CSV 批量匯入
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info mb-3">
+                            <strong>CSV 格式說明：</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>支援兩種格式：<code>序號,卡號</code> 或 <code>卡號</code></li>
+                                <li>範例：<code>1,ABC123456789</code> 或 <code>ABC123456789</code></li>
+                                <li>卡號會按順序匹配到對應的序號欄位</li>
+                                <li>CSV 檔案數量不可超過訂單產品數量（{{ total_codes }} 張）</li>
+                                <li>支援 UTF-8 或 Big5 編碼</li>
+                            </ul>
+                        </div>
+                        
+                        <form id="csvUploadForm" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="row align-items-end">
+                                <div class="col-md-6">
+                                    <label class="form-label">選擇 CSV 檔案</label>
+                                    <input 
+                                        type="file" 
+                                        name="csv_file" 
+                                        id="csvFileInput"
+                                        class="form-control" 
+                                        accept=".csv"
+                                        required
+                                    >
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="ti ti-upload"></i> 上傳並匯入
+                                    </button>
+                                </div>
+                                <div class="col-md-2">
+                                    <a href="#" id="downloadCsvTemplate" class="btn btn-outline-secondary btn-sm">
+                                        <i class="ti ti-download"></i> 下載 CSV
+                                    </a>
+
+                                </div>
+                            </div>
+                        </form>
+                        
+                        <!-- CSV 範本下載 -->
+                        <!-- <div class="mt-3">
+                            <a href="#" id="downloadCsvTemplate" class="btn btn-outline-secondary btn-sm">
+                                <i class="ti ti-download"></i> 下載 CSV 範本
+                            </a>
+                        </div> -->
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 卡號列表 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">卡號列表</h3>
+                        <div class="card-actions">
+                            <small class="text-muted">
+                                共 {{ total_codes }} 張卡
+                            </small>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if messages %}
+                        <div class="mb-3">
+                            {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message|safe }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <form method="post" action="{% url 'business:save_rechargeable_codes' order_id=order_product.order.id product_id=order_product.id %}" id="codesForm">
+                            {% csrf_token %}
+                            
+                            <div class="table-responsive">
+                                <table class="table table-vcenter">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 10%;">序號</th>
+                                            <th style="width: 70%;">卡號 (sn_code)</th>
+                                            <th style="width: 20%; text-align: center;">狀態</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in coupon_list %}
+                                        <tr class="code-row">
+                                            <td class="text-center">
+                                                <strong>#{{ item.sequence }}</strong>
+                                            </td>
+                                            <td>
+                                                <input type="hidden" name="coupon_id_{{ item.coupon.id }}" value="{{ item.coupon.id }}">
+                                                <input 
+                                                    type="text" 
+                                                    name="sn_code_{{ item.coupon.id }}" 
+                                                    value="{{ item.sn_code }}"
+                                                    class="form-control code-input"
+                                                    placeholder="請使用掃描槍掃描卡號..."
+                                                    data-sequence="{{ item.sequence }}"
+                                                    data-filled="{{ item.has_code|yesno:'true,false' }}"
+                                                    {% if not is_headquarter %}readonly{% endif %}
+                                                >
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="status-badge">
+                                                    {% if item.has_code %}
+                                                    <span class="filled-badge">
+                                                        <i class="ti ti-check"></i> 已填寫
+                                                    </span>
+                                                    {% else %}
+                                                    <span class="empty-badge">
+                                                        <i class="ti ti-alert-circle"></i> 未填寫
+                                                    </span>
+                                                    {% endif %}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {% if is_headquarter %}
+                            <div class="d-flex justify-content-between align-items-center mt-4">
+                                <a href="{% url 'business:order_product_detail' order_id=order_product.order.id product_id=order_product.id %}" 
+                                   class="btn btn-outline-secondary">
+                                    <i class="ti ti-arrow-left"></i> 取消
+                                </a>
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="ti ti-device-floppy"></i> 儲存卡號
+                                </button>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info mb-0">
+                                <i class="ti ti-info-circle"></i>
+                                只有總公司管理員可以編輯卡號
+                            </div>
+                            {% endif %}
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 使用說明 -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="ti ti-info-circle"></i> 使用說明
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <ol class="mb-0">
+                            <li>每張實體空卡都有一個唯一的卡號（sn_code）</li>
+                            <li><strong>使用掃描槍掃描卡號，會自動連續填入未填寫的欄位</strong></li>
+                            <li>已填寫的卡號會被跳過，除非用滑鼠點擊該欄位進行修改</li>
+                            <li>填寫完成後，點擊「儲存卡號」進行儲存</li>
+                            <li>儲存卡號不會立即推送到 API 進行啟用</li>
+                            <li>需要在訂單管理頁面手動觸發「批量兌換」功能</li>
+                            <li>系統會自動檢查卡號是否重複，重複的卡號不會被儲存</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scriptcontent %}
+<script>
+    console.log('📋 RECHARGEABLE 卡號管理頁面載入');
+
+    // ✅ CSV 上傳處理
+    (function() {
+        const csvUploadForm = document.getElementById('csvUploadForm');
+        const csvFileInput = document.getElementById('csvFileInput');
+        const downloadCsvTemplate = document.getElementById('downloadCsvTemplate');
+        
+        if (!csvUploadForm) return;
+        
+        // CSV 上傳
+        csvUploadForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const file = csvFileInput.files[0];
+            if (!file) {
+                alert('請選擇 CSV 檔案');
+                return;
+            }
+            
+            if (!file.name.endsWith('.csv')) {
+                alert('請上傳 CSV 格式的檔案');
+                return;
+            }
+            
+            // 確認提示
+            if (!confirm(`確定要匯入 CSV 檔案 "${file.name}" 嗎？\n\n匯入後將覆蓋現有的卡號（按順序）。`)) {
+                return;
+            }
+            
+            // 建立 FormData
+            const formData = new FormData(this);
+            
+            // 顯示載入狀態
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalBtnHtml = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>匯入中...';
+            
+            // 發送 AJAX 請求
+            fetch('{% url "business:import_rechargeable_codes_csv" order_id=order_product.order.id product_id=order_product.id %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`✅ ${data.message}\n\n• 總計：${data.total_codes} 個卡號\n• 更新：${data.updated_count} 筆`);
+                    // 重新載入頁面以顯示更新後的資料
+                    window.location.reload();
+                } else {
+                    alert(`❌ 匯入失敗：${data.error}`);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
+                }
+            })
+            .catch(error => {
+                console.error('CSV 上傳失敗：', error);
+                alert(`❌ 匯入失敗：${error.message || '網路錯誤'}`);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
+            });
+        });
+        
+        // ✅ 下載 CSV 範本
+        downloadCsvTemplate.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // 生成 CSV 範本內容
+            let csvContent = '序號,卡號\n';
+            const totalCodes = {{ total_codes }};
+            
+            for (let i = 1; i <= Math.min(totalCodes, 5); i++) {
+                csvContent += `${i},範例卡號${i.toString().padStart(3, '0')}\n`;
+            }
+            
+            // 如果超過 5 張，顯示省略符號
+            if (totalCodes > 5) {
+                csvContent += `...\n`;
+                csvContent += `${totalCodes},範例卡號${totalCodes.toString().padStart(3, '0')}\n`;
+            }
+            
+            // 建立下載連結
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'rechargeable_codes_template.csv');
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            console.log('✅ CSV 範本已下載');
+        });
+    })();
+    
+    // ✅ 掃描槍自動填入功能（優化版）
+    (function() {
+        'use strict';
+        
+        // 獲取所有卡號輸入框
+        const codeInputs = document.querySelectorAll('.code-input:not([readonly])');
+        
+        if (codeInputs.length === 0) {
+            console.log('沒有可編輯的卡號輸入框（只讀模式）');
+            return;
+        }
+        
+        // 當前聚焦的輸入框索引
+        let currentFocusIndex = -1;
+        
+        // 是否為手動輸入模式
+        let isManualInput = false;
+        
+        // 輸入計時器（用於檢測掃描槍）
+        let inputTimer = null;
+        
+        // 上次輸入時間
+        let lastInputTime = 0;
+        
+        // 掃描槍輸入閾值（毫秒）- 掃描槍通常在 50ms 內完成整個輸入
+        const SCAN_THRESHOLD = 100;
+        
+        /**
+         * 尋找下一個未填寫的輸入框
+         */
+        function findNextEmptyInput() {
+            for (let i = 0; i < codeInputs.length; i++) {
+                const input = codeInputs[i];
+                if (!input.value.trim()) {
+                    return i;
+                }
+            }
+            return -1; // 所有輸入框都已填寫
+        }
+        
+        /**
+         * 聚焦到指定輸入框並添加視覺效果
+         */
+        function focusInput(index) {
+            if (index < 0 || index >= codeInputs.length) {
+                console.log('所有卡號已填寫完成');
+                return;
+            }
+            
+            // 移除所有輸入框的 active 樣式
+            codeInputs.forEach(input => {
+                input.classList.remove('active-scan');
+            });
+            
+            // 聚焦到目標輸入框
+            const targetInput = codeInputs[index];
+            targetInput.focus();
+            targetInput.classList.add('active-scan');
+            
+            // 滾動到可視區域
+            targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            currentFocusIndex = index;
+            
+            console.log(`✅ 聚焦到第 ${index + 1} 個卡號輸入框（序號 ${targetInput.dataset.sequence}）`);
+        }
+        
+        /**
+         * 更新狀態徽章
+         */
+        function updateStatusBadge(input) {
+            const row = input.closest('tr');
+            const statusBadge = row.querySelector('.status-badge');
+            
+            if (input.value.trim()) {
+                statusBadge.innerHTML = `
+                    <span class="filled-badge">
+                        <i class="ti ti-check"></i> 已填寫
+                    </span>
+                `;
+            } else {
+                statusBadge.innerHTML = `
+                    <span class="empty-badge">
+                        <i class="ti ti-alert-circle"></i> 未填寫
+                    </span>
+                `;
+            }
+        }
+        
+        /**
+         * 初始化：聚焦到第一個未填寫的輸入框
+         */
+        function initAutoFocus() {
+            const firstEmptyIndex = findNextEmptyInput();
+            if (firstEmptyIndex !== -1) {
+                focusInput(firstEmptyIndex);
+            } else {
+                console.log('所有卡號已填寫完成');
+            }
+        }
+        
+        /**
+         * 檢測是否為掃描槍輸入
+         * 原理：掃描槍會在極短時間內連續觸發 input 事件
+         */
+        function isScannerInput() {
+            const currentTime = Date.now();
+            const timeDiff = currentTime - lastInputTime;
+            lastInputTime = currentTime;
+            
+            // 如果兩次輸入間隔小於閾值，判定為掃描槍
+            return timeDiff < SCAN_THRESHOLD;
+        }
+        
+        // ✅ 監聽所有輸入框的事件
+        codeInputs.forEach((input, index) => {
+            
+            // ✅ keydown 事件：檢測鍵盤輸入（手動輸入的標誌）
+            input.addEventListener('keydown', function(e) {
+                // 排除功能鍵（Tab, Enter, Backspace 等）
+                if (['Tab', 'Enter', 'Escape', 'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                    // Enter 鍵：手動跳轉到下一個未填寫的欄位
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        isManualInput = false; // 重置手動輸入標記
+                        const nextEmptyIndex = findNextEmptyInput();
+                        if (nextEmptyIndex !== -1) {
+                            focusInput(nextEmptyIndex);
+                        }
+                    }
+                    return;
+                }
+                
+                // 檢測到鍵盤輸入，設定為手動輸入模式
+                isManualInput = true;
+                console.log('🖐️ 檢測到手動鍵盤輸入');
+            });
+            
+            // ✅ input 事件：處理輸入內容
+            input.addEventListener('input', function(e) {
+                const value = this.value.trim();
+                
+                console.log(`📝 輸入框 ${index + 1} 內容變更：${value}`);
+                
+                // 更新狀態徽章
+                updateStatusBadge(this);
+                
+                // 清除之前的計時器
+                if (inputTimer) {
+                    clearTimeout(inputTimer);
+                }
+                
+                // 如果是手動輸入模式，不自動跳轉
+                if (isManualInput) {
+                    console.log('✋ 手動輸入模式，不自動跳轉');
+                    
+                    // 設定計時器：如果 1 秒內沒有新的輸入，重置手動輸入模式
+                    inputTimer = setTimeout(() => {
+                        isManualInput = false;
+                        console.log('⏰ 手動輸入模式已重置');
+                    }, 1000);
+                    
+                    return;
+                }
+                
+                // 檢測是否為掃描槍輸入
+                const isScanner = isScannerInput();
+                
+                // 如果輸入了內容，且判定為掃描槍
+                if (value && isScanner) {
+                    console.log(`🔫 掃描槍輸入：${value}`);
+                    
+                    // 延遲跳轉（給掃描槍留出時間完成整個卡號的輸入）
+                    inputTimer = setTimeout(() => {
+                        const nextEmptyIndex = findNextEmptyInput();
+                        if (nextEmptyIndex !== -1) {
+                            focusInput(nextEmptyIndex);
+                        } else {
+                            console.log('🎉 所有卡號已填寫完成！');
+                            // 移除所有 active 樣式
+                            codeInputs.forEach(inp => inp.classList.remove('active-scan'));
+                        }
+                    }, 150); // 150ms 延遲，確保掃描槍完成輸入
+                }
+            });
+            
+            // ✅ focus 事件：用戶點擊輸入框
+            input.addEventListener('focus', function(e) {
+                // 移除所有輸入框的 active 樣式
+                codeInputs.forEach(inp => inp.classList.remove('active-scan'));
+                
+                // 添加當前輸入框的 active 樣式
+                this.classList.add('active-scan');
+                
+                currentFocusIndex = index;
+                
+                console.log(`👆 聚焦到輸入框 ${index + 1}`);
+                
+                // 如果是通過滑鼠點擊聚焦，設定為手動輸入模式
+                // 這樣可以防止點擊後立即跳轉
+                isManualInput = true;
+                
+                // 200ms 後重置（如果是掃描槍自動聚焦，會在這之前就開始輸入）
+                setTimeout(() => {
+                    if (this.value === '') {
+                        // 如果聚焦後 200ms 內沒有輸入，可能是準備手動輸入
+                        isManualInput = true;
+                    }
+                }, 200);
+            });
+            
+            // ✅ blur 事件：失去焦點
+            input.addEventListener('blur', function(e) {
+                // 延遲重置手動輸入模式
+                setTimeout(() => {
+                    isManualInput = false;
+                    console.log('👋 失去焦點，手動輸入模式已重置');
+                }, 300);
+            });
+            
+            // ✅ paste 事件：處理粘貼
+            input.addEventListener('paste', function(e) {
+                console.log('📋 檢測到粘貼操作');
+                isManualInput = false; // 粘貼視為一次性輸入，可以自動跳轉
+                
+                setTimeout(() => {
+                    const nextEmptyIndex = findNextEmptyInput();
+                    if (nextEmptyIndex !== -1) {
+                        focusInput(nextEmptyIndex);
+                    }
+                }, 100);
+            });
+        });
+        
+        // ✅ 頁面載入後自動聚焦到第一個未填寫的輸入框
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                initAutoFocus();
+                // 初始化時重置手動輸入模式
+                isManualInput = false;
+            }, 500); // 延遲 500ms，確保頁面完全載入
+        });
+        
+        console.log('✅ 掃描槍自動填入功能已啟用（優化版）');
+        console.log(`📊 共 ${codeInputs.length} 個可編輯的卡號輸入框`);
+        console.log(`⚙️ 掃描槍檢測閾值：${SCAN_THRESHOLD}ms`);
+    })();
+    
+    // ✅ 表單提交驗證
+    document.getElementById('codesForm').addEventListener('submit', function(e) {
+        const inputs = document.querySelectorAll('.code-input:not([readonly])');
+        let hasEmpty = false;
+        let emptyCount = 0;
+        
+        inputs.forEach(input => {
+            if (!input.value.trim()) {
+                hasEmpty = true;
+                emptyCount++;
+            }
+        });
+        
+        if (hasEmpty) {
+            const confirmMsg = `有 ${emptyCount} 個卡號未填寫，確定要儲存嗎？\n\n未填寫的卡號可以稍後再補填。`;
+            if (!confirm(confirmMsg)) {
+                e.preventDefault();
+                return false;
+            }
+        }
+        
+        // 禁用提交按鈕，避免重複提交
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>儲存中...';
+    });
+</script>
+{% endblock %}

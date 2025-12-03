@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}<title>刪除分類 - DB3C ERP</title>{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h3 class="card-title">
+                            <i class="ti ti-alert-triangle"></i>
+                            確認刪除產品分類
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        {% if has_products %}
+                        <div class="alert alert-danger">
+                            <strong>無法刪除！</strong>
+                            <p class="mb-0">
+                                此分類「<strong>{{ object.name }}</strong>」下還有 <strong>{{ product_count }}</strong> 個產品。
+                                <br>請先移除或重新分類這些產品後再刪除此分類。
+                            </p>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'products:category_list' %}" class="btn btn-secondary">
+                                <i class="ti ti-arrow-left"></i> 返回列表
+                            </a>
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-4">
+                            您確定要刪除分類「<strong>{{ object.name }}</strong>」嗎？
+                        </p>
+                        
+                        <div class="alert alert-warning">
+                            <strong>警告：</strong>此操作無法復原！
+                        </div>
+                        
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'products:category_list' %}" class="btn btn-secondary">
+                                    <i class="ti ti-x"></i> 取消
+                                </a>
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="ti ti-trash"></i> 確定刪除
+                                </button>
+                            </div>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+
+
+
+.page-wrapper.compact-wrapper .page-body-wrapper header.main-nav .sidebar-user {
+    padding: 15px 5px 15px 5px;
+    position: relative;
+    border-bottom: 1px solid #e6edef;
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    background-color:blue;
+    color: #fff;
+    margin-bottom: 5px;
+}
+
+.page-wrapper.compact-wrapper .page-body-wrapper header.main-nav .sidebar-user > a {
+    color: #fff;
+}
+
+
+.page-wrapper.compact-wrapper .page-body-wrapper header.main-nav .main-navbar .nav-menu {
+border-radius: 0;
+height: calc(100vh - 175px);
+left: -300px;
+z-index: 99;
+-webkit-transition: color 1s ease;
+transition: color 1s ease;
+overflow: hidden;
+overflow-y: auto;
+color: rgba(0, 0, 0, 0);
+border: 1px solid rgba(0, 0, 0, 0.125);
+padding-bottom: 15px;
+}
+
+
+
+a.nav-link, .page-wrapper.compact-wrapper .page-body-wrapper header.main-nav .main-navbar .nav-menu .dropdown ul.nav-submenu li a {
+   font-size: 18px; 
+}
+
+.table {
+    font-size: 16px; 
+}
+.btn {
+    font-size: 16px; 
+}
+p {
+    font-size: 16px; 
+}
+.form-control, .form-select, label {
+background-color: #fff;
+font-size: 13px; 
+border-color: #e6edef;
+}
+ 

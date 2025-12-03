@@ -1,0 +1,365 @@
+{% extends 'base.html' %}
+{% load static %} 
+{% load humanize %}
+
+{% block css %}
+<style>
+    .info-card {
+        border-left: 4px solid #0d6efd;
+    }
+    .info-label {
+        font-weight: 600;
+        color: #6c757d;
+        margin-bottom: 5px;
+    }
+    .info-value {
+        color: #212529;
+        font-size: 1.1rem;
+    }
+    .section-title {
+        border-bottom: 2px solid #dee2e6;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
+    .status-badge {
+        font-size: 1rem;
+        padding: 0.5rem 1rem;
+    }
+    .children-table {
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block title %}
+<title>用戶詳情 - {{ account.username }}</title>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <!-- 返回按鈕 -->
+                <div class="mb-3">
+                    <a href="{% url 'accounts:account_list' %}" class="btn btn-secondary me-5">
+                        <i class="fa fa-arrow-left"></i> 返回列表
+                    </a>
+                    {% if can_edit %}
+                        <a href="" class="btn btn-warning">
+                            <i class="fa fa-edit"></i> 編輯
+                        </a>
+                        <a href="" class="btn btn-sm btn-danger">
+                            <i class="fa fa-trash"></i>
+                            刪除
+                        </a>
+                    {% endif %}
+                    
+                </div>
+
+                <!-- 基本資訊卡片 -->
+                <div class="card info-card mb-4">
+                    <div class="card-header pb-0 mb-0">
+                        <h4 class="mb-0">
+                            <i class="fa fa-user"></i> 基本資訊
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- ID -->
+                            <div class="col-md-3 mb-3">
+                                <div class="info-label">用戶ID</div>
+                                <div class="info-value">{{ account.id }}</div>
+                            </div>
+
+                            <!-- 帳號 -->
+                            <div class="col-md-3 mb-3">
+                                <div class="info-label">帳號</div>
+                                <div class="info-value">{{ account.username }}</div>
+                            </div>
+
+                            <!-- 姓名 -->
+                            <div class="col-md-3 mb-3">
+                                <div class="info-label">姓名</div>
+                                <div class="info-value">{{ account.fullname|default:"-" }}</div>
+                            </div>
+
+                            <!-- 電子郵件 -->
+                            <div class="col-md-3 mb-3">
+                                <div class="info-label">電子郵件</div>
+                                <div class="info-value">{{ account.email }}</div>
+                            </div>
+
+                            <!-- 角色 -->
+                            <div class="col-md-3 mb-3">
+                                <div class="info-label">用戶角色</div>
+                                <div class="info-value">
+                                    {% if account.role == 'HEADQUARTER' %}
+                                        <span class="badge bg-danger">{{ account.get_role_display }}</span>
+                                    {% elif account.role == 'AGENT' %}
+                                        <span class="badge bg-primary">{{ account.get_role_display }}</span>
+                                    {% elif account.role == 'DISTRIBUTOR' %}
+                                        <span class="badge bg-secondary">{{ account.get_role_display }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- 狀態 -->
+                            <div class="col-md-3 mb-3">
+                                <div class="info-label">用戶狀態</div>
+                                <div class="info-value">
+                                    {% if account.status == 'ACTIVE' %}
+                                        <span class="badge bg-success status-badge">{{ account.get_status_display }}</span>
+                                    {% elif account.status == 'INACTIVE' %}
+                                        <span class="badge bg-warning status-badge">{{ account.get_status_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary status-badge">{{ account.get_status_display }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- 上級用戶 -->
+                            <div class="col-md-3 mb-3">
+                                <div class="info-label">上級用戶</div>
+                                <div class="info-value">
+                                    {% if account.parent %}
+                                        <a href="{% url 'accounts:account_detail' account.parent.pk %}">
+                                            {{ account.parent.fullname|default:account.parent.username }}
+                                        </a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- 手機號碼 -->
+                            <div class="col-md-3 mb-3">
+                                <div class="info-label">手機號碼</div>
+                                <div class="info-value">{{ account.mobilephone|default:"-" }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 公司資訊卡片 -->
+                <div class="card info-card mb-4">
+                    <div class="card-header pb-0 mb-0">
+                        <h4 class="mb-0">
+                            <i class="fa fa-building"></i> 公司資訊
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- 公司名稱 -->
+                            <div class="col-md-4 mb-3">
+                                <div class="info-label">公司名稱</div>
+                                <div class="info-value">{{ account.company|default:"-" }}</div>
+                            </div>
+
+                            <!-- 統一編號 -->
+                            <div class="col-md-4 mb-3">
+                                <div class="info-label">統一編號</div>
+                                <div class="info-value">{{ account.tax_id|default:"-" }}</div>
+                            </div>
+
+                            <!-- 生日 -->
+                            <div class="col-md-4 mb-3">
+                                <div class="info-label">生日</div>
+                                <div class="info-value">
+                                    {% if account.birthdate %}
+                                        {{ account.birthdate|date:"Y-m-d" }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- 地址 -->
+                            <div class="col-md-12 mb-3">
+                                <div class="info-label">地址</div>
+                                <div class="info-value">{{ account.address|default:"-" }}</div>
+                            </div>
+
+                            <!-- 備註 -->
+                            <div class="col-md-12 mb-3">
+                                <div class="info-label">備註</div>
+                                <div class="info-value">{{ account.note|default:"-" }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 權限資訊卡片 -->
+                <div class="card info-card mb-4">
+                    <div class="card-header pb-0 mb-0">
+                        <h4 class="mb-0">
+                            <i class="fa fa-shield-alt"></i> 權限資訊
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- 帳號啟用 -->
+                            <div class="col-md-3 mb-3">
+                                <div class="info-label">帳號啟用</div>
+                                <div class="info-value">
+                                    {% if account.is_active %}
+                                        <span class="badge bg-success"><i class="fa fa-check"></i> 是</span>
+                                    {% else %}
+                                        <span class="badge bg-danger"><i class="fa fa-times"></i> 否</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- 員工權限 -->
+                            <div class="col-md-3 mb-3">
+                                <div class="info-label">員工權限</div>
+                                <div class="info-value">
+                                    {% if account.is_staff %}
+                                        <span class="badge bg-success"><i class="fa fa-check"></i> 是</span>
+                                    {% else %}
+                                        <span class="badge bg-danger"><i class="fa fa-times"></i> 否</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- 管理員權限 -->
+                            <div class="col-md-3 mb-3">
+                                <div class="info-label">管理員權限</div>
+                                <div class="info-value">
+                                    {% if account.is_admin %}
+                                        <span class="badge bg-success"><i class="fa fa-check"></i> 是</span>
+                                    {% else %}
+                                        <span class="badge bg-danger"><i class="fa fa-times"></i> 否</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- 超級管理員 -->
+                            <div class="col-md-3 mb-3">
+                                <div class="info-label">超級管理員</div>
+                                <div class="info-value">
+                                    {% if account.is_superuser %}
+                                        <span class="badge bg-success"><i class="fa fa-check"></i> 是</span>
+                                    {% else %}
+                                        <span class="badge bg-danger"><i class="fa fa-times"></i> 否</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- 已驗證 -->
+                            <div class="col-md-3 mb-3">
+                                <div class="info-label">已驗證</div>
+                                <div class="info-value">
+                                    {% if account.is_verified %}
+                                        <span class="badge bg-success"><i class="fa fa-check"></i> 是</span>
+                                    {% else %}
+                                        <span class="badge bg-warning"><i class="fa fa-times"></i> 否</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 時間資訊卡片 -->
+                <div class="card info-card mb-4">
+                    <div class="card-header pb-0 mb-0">
+                        <h4 class="mb-0">
+                            <i class="fa fa-clock"></i> 時間資訊
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- 建立時間 -->
+                            <div class="col-md-4 mb-3">
+                                <div class="info-label">建立時間</div>
+                                <div class="info-value">{{ account.created_at|date:"Y-m-d H:i:s" }}</div>
+                            </div>
+
+                            <!-- 更新時間 -->
+                            <div class="col-md-4 mb-3">
+                                <div class="info-label">更新時間</div>
+                                <div class="info-value">{{ account.updated_at|date:"Y-m-d H:i:s" }}</div>
+                            </div>
+
+                            <!-- 最後登入 -->
+                            <div class="col-md-4 mb-3">
+                                <div class="info-label">最後登入</div>
+                                <div class="info-value">
+                                    {% if account.last_login %}
+                                        {{ account.last_login|date:"Y-m-d H:i:s" }}
+                                    {% else %}
+                                        尚未登入
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 下級用戶列表 -->
+                {% if children %}
+                <div class="card info-card mb-4">
+                    <div class="card-header pb-0 mb-0">
+                        <h4 class="mb-0">
+                            <i class="fa fa-users"></i> 下級用戶 ({{ total_children }})
+                        </h4>
+                    </div>
+                    <div class="card-body mt-0 pt-0">
+                        <div class="table-responsive children-table">
+                            <table class="table table-bordered table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>帳號</th>
+                                        <th>姓名</th>
+                                        <th>角色</th>
+                                        <th>狀態</th>
+                                        <th>建立時間</th>
+                                        <th>動作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for child in children %}
+                                    <tr>
+                                        <td>{{ child.id }}</td>
+                                        <td>{{ child.username }}</td>
+                                        <td>{{ child.fullname|default:"-" }}</td>
+                                        <td>
+                                            <span class="badge bg-info">{{ child.get_role_display }}</span>
+                                        </td>
+                                        <td>
+                                            {% if child.status == 'ACTIVE' %}
+                                                <span class="badge bg-success">{{ child.get_status_display }}</span>
+                                            {% elif child.status == 'INACTIVE' %}
+                                                <span class="badge bg-warning">{{ child.get_status_display }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ child.get_status_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ child.created_at|date:"Y-m-d" }}</td>
+                                        <td>
+                                            <a href="{% url 'accounts:account_detail' child.pk %}" class="btn btn-sm btn-primary">
+                                                <i class="fa fa-eye"></i> 查看
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scriptcontent %}
+<script>
+
+</script>
+{% endblock %}

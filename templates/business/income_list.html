@@ -1,0 +1,372 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+{% load currency %}
+
+{% block title %}<title>收入記錄 - DB3C ERP</title>{% endblock %}
+
+{% block css %}
+<style>
+    /* 收入卡片樣式 */
+    .income-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .income-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }
+    
+    /* 統計卡片 */
+    .stats-card {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        border-radius: 12px;
+        padding: 20px;
+        color: white;
+        margin-bottom: 20px;
+    }
+    
+    .stats-card h3 {
+        font-size: 2rem;
+        margin: 10px 0;
+    }
+    
+    .stats-card.blue {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .stats-card .stats-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+    }
+    
+    /* 篩選區域 */
+    .filter-section {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .filter-title {
+        font-weight: 600;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 10px;
+    }
+    
+    /* 金額樣式 */
+    .amount-income {
+        color: #28a745;
+        font-weight: 700;
+        font-size: 1.2rem;
+    }
+    
+    /* 空狀態 */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 20px;
+    }
+    
+    /* 手機響應式 */
+    @media (max-width: 767.98px) {
+        .income-card {
+            padding: 15px;
+        }
+        .stats-card h3 {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <!-- 頁面標題 -->
+        <div class="page-header d-print-none">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h2 class="page-title">
+                        <i class="fa fa-line-chart"></i> 收入記錄
+                    </h2>
+                    <div class="text-muted">管理所有收入項目</div>
+                </div>
+                <div class="col-auto">
+                    {% if is_headquarter_admin %}
+                    <a href="{% url 'business:income_create' %}" class="btn btn-primary">
+                        <i class="fa fa-plus"></i> 新增收入
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 統計卡片 -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="stats-card blue">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="w-100">
+                            <div class="small">收入記錄總數</div>
+                            <h3>{{ total_incomes }} 筆</h3>
+                            <div class="small">所有收入項目統計</div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="fa fa-list"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stats-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="w-100">
+                            <div class="small">收入總金額</div>
+                            <h3>${{ total_amount|currency }}</h3>
+                            <div class="small">所有收入項目總計</div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="fa fa-dollar"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 篩選區域 -->
+        <div class="filter-section bg-white">
+            <div class="filter-title">
+                <i class="fa fa-filter"></i> 篩選條件
+            </div>
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <!-- 搜尋 -->
+                    <div class="col-md-3">
+                        <label class="form-label">搜尋</label>
+                        <input type="text" name="q" class="form-control" 
+                            placeholder="名稱、備註" 
+                            value="{{ search_query }}">
+                    </div>
+
+                    <!-- 收入項目 -->
+                    <div class="col-md-2">
+                        <label class="form-label">收入項目</label>
+                        <select name="item" class="form-select">
+                            <option value="">全部項目</option>
+                            {% for value, label in income_items %}
+                                <option value="{{ value }}" {% if selected_item == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 日期範圍 -->
+                    <div class="col-md-2">
+                        <label class="form-label">開始日期</label>
+                        <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">結束日期</label>
+                        <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                    </div>
+
+                    <!-- 操作按鈕 -->
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="fa fa-search"></i> 搜尋
+                        </button>
+                        <a href="{% url 'business:income_list' %}" class="btn btn-secondary">
+                            <i class="fa fa-refresh"></i> 重置
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Desktop 表格視圖 -->
+        <div class="table-responsive d-none d-md-block mb-5 bg-white">
+            <table class="table table-bordered table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>日期</th>
+                        <th >名稱</th>
+                        <th>收入項目</th>
+                        <th>金額</th>
+                        <th>備註</th>
+                        <th >操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for income in incomes %}
+                        <tr>
+                            <td>
+                                {% if income.date %}
+                                    {{ income.date|date:"Y-m-d" }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ income.name }}</strong>
+                            </td>
+                            <td>
+                                {% if income.item == 'SALES' %}
+                                    <span class="badge bg-success">{{ income.get_item_display }}</span>
+                                {% elif income.item == 'SERVICE_FEE' %}
+                                    <span class="badge bg-primary">{{ income.get_item_display }}</span>
+                                {% elif income.item == 'INVESTMENT' %}
+                                    <span class="badge bg-info">{{ income.get_item_display }}</span>
+                                {% elif income.item == 'RENT' %}
+                                    <span class="badge bg-warning">{{ income.get_item_display }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ income.get_item_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="amount-income">+${{ income.amount|currency }}</span>
+                            </td>
+                            <td>
+                                <small>{{ income.remark|default:"-" }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'business:income_update' income.pk %}" 
+                                       class="btn btn-outline-primary" title="編輯">
+                                        <i class="fa fa-edit"></i> 編輯
+                                    </a>
+                                    <a href="{% url 'business:income_delete' income.pk %}" 
+                                       class="btn btn-outline-danger" title="刪除">
+                                        <i class="fa fa-trash"></i> 刪除
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6">
+                                <div class="empty-state">
+                                    <i class="fa fa-inbox"></i>
+                                    <p class="text-muted">沒有找到收入記錄</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mobile 卡片視圖 -->
+        <div class="d-md-none">
+            {% for income in incomes %}
+            <div class="income-card">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <strong>{{ income.name }}</strong>
+                        <br>
+                        {% if income.item == 'SALES' %}
+                            <span class="badge bg-success mt-1">{{ income.get_item_display }}</span>
+                        {% elif income.item == 'SERVICE_FEE' %}
+                            <span class="badge bg-primary mt-1">{{ income.get_item_display }}</span>
+                        {% elif income.item == 'INVESTMENT' %}
+                            <span class="badge bg-info mt-1">{{ income.get_item_display }}</span>
+                        {% elif income.item == 'RENT' %}
+                            <span class="badge bg-warning mt-1">{{ income.get_item_display }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary mt-1">{{ income.get_item_display }}</span>
+                        {% endif %}
+                    </div>
+                    <span class="amount-income">+${{ income.amount|currency }}</span>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted">
+                        <i class="fa fa-calendar"></i> 
+                        {% if income.date %}
+                            {{ income.date|date:"Y-m-d" }}
+                        {% else %}
+                            無日期
+                        {% endif %}
+                    </small>
+                </div>
+                {% if income.remark %}
+                <div class="mb-2">
+                    <small>{{ income.remark }}</small>
+                </div>
+                {% endif %}
+                <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                    <small class="text-muted">
+                        建立於 {{ income.created_at|date:"Y-m-d H:i" }}
+                    </small>
+                    <div class="btn-group btn-group-sm">
+                        <a href="{% url 'business:income_update' income.pk %}" 
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="fa fa-edit"></i> 編輯
+                        </a>
+                        <a href="{% url 'business:income_delete' income.pk %}" 
+                           class="btn btn-outline-danger btn-sm">
+                            <i class="fa fa-trash"></i> 刪除
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-state">
+                <i class="fa fa-inbox"></i>
+                <p class="text-muted">沒有找到收入記錄</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- 分頁 -->
+        {% if is_paginated %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_item %}&item={{ selected_item }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                        <i class="fa fa-angle-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">
+                        第 {{ page_obj.number }} 頁 / 共 {{ page_obj.paginator.num_pages }} 頁
+                    </span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                        <i class="fa fa-angle-double-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

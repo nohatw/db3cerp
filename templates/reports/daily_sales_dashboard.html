@@ -1,0 +1,663 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load report_filters %}
+{% load currency %}
+
+{% block title %}
+<title>營業收入儀表板 - DB3CERP系統</title>
+{% endblock %}
+
+{% block css %}
+<style>
+    .dashboard-card {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 25px;
+        text-align: center;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stats-card.success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3);
+    }
+    
+    .stats-card.warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+    }
+    
+    .stats-card.info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);
+    }
+    
+    .stats-number {
+        font-size: 32px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    
+    .stats-label {
+        font-size: 14px;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .rank-badge {
+        display: inline-block;
+        width: 35px;
+        height: 35px;
+        line-height: 35px;
+        border-radius: 50%;
+        text-align: center;
+        font-weight: bold;
+        color: white;
+        font-size: 14px;
+    }
+    
+    .rank-badge.gold {
+        background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+        box-shadow: 0 2px 8px rgba(246, 211, 101, 0.5);
+    }
+    
+    .rank-badge.silver {
+        background: linear-gradient(135deg, #c9d6df 0%, #b8c6db 100%);
+        box-shadow: 0 2px 8px rgba(201, 214, 223, 0.5);
+    }
+    
+    .rank-badge.bronze {
+        background: linear-gradient(135deg, #dfa579 0%, #cd853f 100%);
+        box-shadow: 0 2px 8px rgba(223, 165, 121, 0.5);
+    }
+    
+    .rank-badge.gray {
+        background: linear-gradient(135deg, #868f96 0%, #596164 100%);
+    }
+    
+    .role-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    
+    .role-badge.HEADQUARTER { background-color: #9b59b6; color: white; }
+    .role-badge.AGENT { background-color: #3498db; color: white; }
+    .role-badge.DISTRIBUTOR { background-color: #2ecc71; color: white; }
+    .role-badge.PEER { background-color: #e67e22; color: white; }
+    .role-badge.USER { background-color: #95a5a6; color: white; }
+    
+    .top-report-item {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background-color 0.2s;
+    }
+    
+    .top-report-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .top-report-item:last-child {
+        border-bottom: none;
+    }
+    
+    .rank-section {
+        flex: 0 0 50px;
+    }
+    
+    .user-section {
+        flex: 1;
+        margin-left: 15px;
+    }
+    
+    .user-name {
+        font-weight: 600;
+        font-size: 15px;
+        margin-bottom: 4px;
+    }
+    
+    .revenue-section {
+        flex: 0 0 150px;
+        text-align: right;
+    }
+    
+    .revenue-amount {
+        font-size: 18px;
+        font-weight: bold;
+        color: #667eea;
+    }
+    
+    .revenue-detail {
+        font-size: 12px;
+        color: #6c757d;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 350px;
+        margin-top: 20px;
+    }
+    
+    .role-stat-item {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        margin-bottom: 10px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    .role-stat-label {
+        flex: 1;
+        font-weight: 500;
+    }
+    
+    .role-stat-amount {
+        flex: 0 0 120px;
+        text-align: right;
+        font-weight: bold;
+        color: #667eea;
+    }
+    
+    .role-stat-percentage {
+        flex: 0 0 60px;
+        text-align: right;
+        color: #6c757d;
+        font-size: 13px;
+    }
+    
+    .product-type-item {
+        margin-bottom: 15px;
+    }
+    
+    .product-type-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+    }
+    
+    .product-type-name {
+        font-weight: 500;
+    }
+    
+    .product-type-revenue {
+        color: #667eea;
+        font-weight: bold;
+    }
+    
+    .progress-custom {
+        height: 8px;
+        border-radius: 4px;
+        background-color: #e9ecef;
+        overflow: hidden;
+    }
+    
+    .progress-bar-custom {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s ease;
+    }
+    
+    .my-report-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .my-report-title {
+        font-size: 16px;
+        opacity: 0.9;
+        margin-bottom: 15px;
+    }
+    
+    .my-report-stats {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    .my-stat-item {
+        text-align: center;
+    }
+    
+    .my-stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .my-stat-label {
+        font-size: 12px;
+        opacity: 0.9;
+    }
+    
+    .date-nav {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 25px;
+    }
+    
+    .date-nav button {
+        flex: 0 0 auto;
+    }
+    
+    .date-nav input {
+        flex: 1;
+        max-width: 200px;
+    }
+    
+    @media (max-width: 768px) {
+        .stats-number {
+            font-size: 24px;
+        }
+        
+        .chart-container {
+            height: 250px;
+        }
+        
+        .top-report-item {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .rank-section,
+        .user-section,
+        .revenue-section {
+            flex: 1 1 100%;
+            text-align: left;
+            margin-left: 0;
+        }
+        
+        .revenue-section {
+            margin-top: 10px;
+        }
+        
+        .my-report-stats {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="page-header">
+        <div class="row">
+            <div class="col-sm-6">
+                <h3>營業收入儀表板</h3>
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="">首頁</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'reports:daily_list' %}">日報表</a></li>
+                    <li class="breadcrumb-item active">儀表板</li>
+                </ol>
+            </div>
+            <div class="col-sm-6 text-end">
+                <a href="{% url 'reports:daily_list' %}" class="btn btn-primary">
+                    <i class="fa fa-list"></i> 報表列表
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 日期導航 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <div class="date-nav">
+                    <a href="?date={{ prev_date|date:'Y-m-d' }}" class="btn btn-outline-primary">
+                        <i class="fa fa-chevron-left"></i> 前一天
+                    </a>
+                    <input type="date" 
+                           class="form-control" 
+                           id="dateInput" 
+                           value="{{ report_date|date:'Y-m-d' }}"
+                           max="{{ today|date:'Y-m-d' }}"
+                           onchange="window.location.href='?date=' + this.value">
+                    {% if can_next %}
+                    <a href="?date={{ next_date|date:'Y-m-d' }}" class="btn btn-outline-primary">
+                        後一天 <i class="fa fa-chevron-right"></i>
+                    </a>
+                    {% else %}
+                    <button class="btn btn-outline-secondary" disabled>
+                        後一天 <i class="fa fa-chevron-right"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 總覽統計卡片 -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card">
+                <div class="stats-label">總收入</div>
+                <div class="stats-number">
+                    ${{ daily_summary.total_revenue }}
+                </div>
+                <div><i class="fa fa-chart-line"></i> 今日營業額</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card success">
+                <div class="stats-label">總訂單</div>
+                <div class="stats-number">{{ daily_summary.total_orders|default:0 }}</div>
+                <div><i class="fa fa-shopping-cart"></i> 完成訂單數</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card warning">
+                <div class="stats-label">銷售產品</div>
+                <div class="stats-number">{{ daily_summary.total_products_sold|default:0 }}</div>
+                <div><i class="fa fa-box"></i> 總銷售數量</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card info">
+                <div class="stats-label">平均訂單</div>
+                <div class="stats-number">
+                    ${% if daily_summary.total_orders > 0 %}{{ daily_summary.total_revenue|currency }}{% else %}0{% endif %}
+                </div>
+                <div><i class="fa fa-calculator"></i> 平均訂單金額</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 我的業績 (如果有報表) -->
+    {% if my_report %}
+    <div class="row">
+        <div class="col-12">
+            <div class="my-report-card">
+                <div class="my-report-title">
+                    <i class="fa fa-user-circle"></i> 我的今日業績
+                </div>
+                <div class="my-report-stats">
+                    <div class="my-stat-item">
+                        <div class="my-stat-value">${{ my_report.total_revenue|currency }}</div>
+                        <div class="my-stat-label">總收入</div>
+                    </div>
+                    <div class="my-stat-item">
+                        <div class="my-stat-value">{{ my_report.total_orders }}</div>
+                        <div class="my-stat-label">訂單數</div>
+                    </div>
+                    <div class="my-stat-item">
+                        <div class="my-stat-value">#{{ my_rank|default:'-' }}</div>
+                        <div class="my-stat-label">總排名</div>
+                    </div>
+                    <div class="my-stat-item">
+                        <div class="my-stat-value">#{{ my_role_rank|default:'-' }}</div>
+                        <div class="my-stat-label">角色排名</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Top 10 業績排名 -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="dashboard-card">
+                <h5 class="mb-4">
+                    <i class="fa fa-trophy text-warning"></i> Top 10 業績排名
+                </h5>
+                
+                {% if top_reports %}
+                <div class="top-reports-list">
+                    {% for report in top_reports %}
+                    <div class="top-report-item">
+                        <div class="rank-section">
+                            {% if forloop.counter == 1 %}
+                            <span class="rank-badge gold">{{ forloop.counter }}</span>
+                            {% elif forloop.counter == 2 %}
+                            <span class="rank-badge silver">{{ forloop.counter }}</span>
+                            {% elif forloop.counter == 3 %}
+                            <span class="rank-badge bronze">{{ forloop.counter }}</span>
+                            {% else %}
+                            <span class="rank-badge gray">{{ forloop.counter }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="user-section">
+                            <div class="user-name">
+                                {{ report.user.fullname }}
+                                {% if report.user.company %}
+                                <small class="text-muted">({{ report.user.company }})</small>
+                                {% endif %}
+                            </div>
+                            <span class="role-badge {{ report.user.role }}">
+                                {{ report.user.get_role_display }}
+                            </span>
+                        </div>
+                        <div class="revenue-section">
+                            <div class="revenue-amount">
+                                ${{ report.total_revenue|currency }}
+                            </div>
+                            <div class="revenue-detail">
+                                {{ report.total_orders }} 訂單 / {{ report.total_products_sold }} 產品
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fa fa-inbox fa-3x mb-3"></i>
+                    <p>今日暫無業績數據</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 右側統計 -->
+        <div class="col-xl-4 col-lg-5">
+            <!-- 角色業績統計 -->
+            <div class="dashboard-card">
+                <h5 class="mb-4">
+                    <i class="fa fa-users"></i> 角色業績統計
+                </h5>
+                
+                {% if role_stats %}
+                <div class="role-stats-list">
+                    {% for stat in role_stats %}
+                    <div class="role-stat-item">
+                        <div class="role-stat-label">
+                            <span class="role-badge {{ stat.role }}">
+                                {{ stat.role_display }}
+                            </span>
+                        </div>
+                        <div class="role-stat-amount">
+                            ${{ stat.revenue|currency }}
+                        </div>
+                        <div class="role-stat-percentage">
+                            {{ stat.percentage|floatformat:1 }}%
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <p>暫無統計數據</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- 熱門產品類型 -->
+            <div class="dashboard-card mt-4">
+                <h5 class="mb-4">
+                    <i class="fa fa-box-open"></i> 熱門產品類型
+                </h5>
+                
+                {% if product_types %}
+                <div class="product-types-list">
+                    {% for product in product_types %}
+                    <div class="product-type-item">
+                        <div class="product-type-header">
+                            <span class="product-type-name">{{ product.type }}</span>
+                            <span class="product-type-revenue">
+                                ${{ product.revenue|currency }}
+                            </span>
+                        </div>
+                        <div class="progress-custom">
+                            <div class="progress-bar-custom" 
+                                 style="width: {% if daily_summary.total_revenue > 0 %}{{ product.revenue|div:daily_summary.total_revenue|mul:100 }}{% else %}0{% endif %}%">
+                            </div>
+                        </div>
+                        <small class="text-muted">數量: {{ product.quantity }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <p>暫無產品數據</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 7日趨勢圖表 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <h5 class="mb-4">
+                    <i class="fa fa-chart-area"></i> 近7日營業趨勢
+                </h5>
+                
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 7日趨勢圖表
+        const trendData = {{ trend_data|safe }};
+        
+        if (trendData && trendData.length > 0) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            
+            const labels = trendData.map(item => item.date);
+            const revenueData = trendData.map(item => item.revenue);
+            const ordersData = trendData.map(item => item.orders);
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '總收入 ($)',
+                            data: revenueData,
+                            borderColor: 'rgb(102, 126, 234)',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            yAxisID: 'y',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: '訂單數',
+                            data: ordersData,
+                            borderColor: 'rgb(46, 204, 113)',
+                            backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                            yAxisID: 'y1',
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        if (context.dataset.yAxisID === 'y') {
+                                            label += '$' + context.parsed.y.toLocaleString();
+                                        } else {
+                                            label += context.parsed.y;
+                                        }
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: '收入 ($)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: '訂單數'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+
+<!-- 自定義 template filter mul -->
+<script>
+// 定義乘法過濾器（用於計算百分比）
+{% load report_filters %}
+</script>
+{% endblock %}

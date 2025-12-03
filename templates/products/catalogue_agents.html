@@ -1,0 +1,1095 @@
+{% extends 'base.html' %}
+{% load static %} 
+{% load humanize %}
+{% load currency %}
+{% load dict_filters %}
+
+{% block title %}<title>批量選購 - DB3C ERP</title>{% endblock %}
+
+{% block css %}
+<style>
+    /* 批量選購專用樣式 */
+    .batch-order-container {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #667eea;
+    }
+    
+    .page-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .page-title i {
+        color: #667eea;
+    }
+    
+    .role-badge {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .role-badge.headquarter {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+    }
+    
+    .role-badge.agent {
+        background: #28a745;
+        color: #fff;
+    }
+    
+    .role-badge.distributor {
+        background: #ffc107;
+        color: #333;
+    }
+    
+    /* 篩選區域 */
+    .filter-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .filter-row {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .filter-label {
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .filter-label i {
+        color: #667eea;
+    }
+    
+    /* 產品表格 */
+    .products-table {
+        width: 100%;
+        background: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        display: table; /* 桌面版使用表格 */
+    }
+    
+    .products-table thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+    }
+    
+    .products-table th {
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    .products-table tbody tr {
+        border-bottom: 1px solid #eee;
+        transition: all 0.3s;
+    }
+    
+    .products-table tbody tr:hover {
+        background: #f8f9ff;
+    }
+    
+    .products-table td {
+        padding: 15px;
+        vertical-align: middle;
+    }
+    
+    /* 產品資訊 */
+    .product-info {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .product-name {
+        font-weight: 600;
+        color: #333;
+        font-size: 16px;
+    }
+    
+    .product-category {
+        font-size: 12px;
+        color: #667eea;
+    }
+    
+    /* 變體資訊 */
+    .variant-info {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+    
+    .variant-name {
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .variant-specs {
+        font-size: 13px;
+        color: #666;
+    }
+    
+    .variant-code {
+        font-size: 12px;
+        color: #999;
+        font-family: monospace;
+    }
+    
+    /* 價格顯示 */
+    .price-display {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+    
+    .current-price {
+        font-size: 20px;
+        font-weight: 700;
+        color: #667eea;
+    }
+    
+    .original-price {
+        font-size: 14px;
+        color: #999;
+        text-decoration: line-through;
+    }
+    
+    .discount-badge {
+        display: inline-block;
+        background: #ff6b6b;
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    
+    /* 數量輸入 */
+    .qty-input-group {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .qty-btn {
+        width: 32px;
+        height: 32px;
+        border: 1px solid #ddd;
+        background: #fff;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .qty-btn:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+    
+    .qty-input {
+        width: 60px;
+        text-align: center;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 6px;
+        font-weight: 600;
+    }
+    
+    /* 加入購物車按鈕 */
+    .btn-add-cart {
+        padding: 8px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        white-space: nowrap;
+    }
+    
+    .btn-add-cart:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-add-cart:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    /* 購物車資訊 */
+    .cart-in-table {
+        color: #28a745;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    
+    .cart-in-table i {
+        margin-right: 5px;
+    }
+    
+    /* 空狀態 */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #999;
+    }
+    
+    .empty-state i {
+        font-size: 64px;
+        color: #ddd;
+        margin-bottom: 20px;
+    }
+    
+    /* 統計資訊 */
+    .stats-bar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* 庫存資訊樣式 */
+    .stock-info {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .stock-badge {
+        padding: 6px 12px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .stock-badge.in-stock {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .stock-badge.out-of-stock-badge {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    /* 無庫存行樣式 */
+    .products-table tbody tr.out-of-stock {
+        background: #f8f9fa;
+        opacity: 0.7;
+    }
+    
+    .products-table tbody tr.out-of-stock:hover {
+        background: #f8f9fa;
+    }
+    
+    /* 禁用按鈕樣式 */
+    .btn-add-cart:disabled {
+        background: #6c757d !important;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    
+    /* 手機版卡片佈局 */
+    @media (max-width: 768px) {
+        /* 隱藏表格結構 */
+        .products-table,
+        .products-table thead,
+        .products-table tbody,
+        .products-table tr,
+        .products-table td {
+            display: block;
+            width: 100%;
+        }
+        
+        .products-table thead {
+            display: none; /* 隱藏表頭 */
+        }
+        
+        .products-table tbody tr {
+            margin-bottom: 20px;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 15px;
+            background: #fff;
+        }
+        
+        .products-table tbody tr:hover {
+            background: #fff;
+        }
+        
+        .products-table td {
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .products-table td:last-child {
+            border-bottom: none;
+        }
+        
+        /* 添加標籤 */
+        .products-table td::before {
+            content: attr(data-label);
+            display: block;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 5px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        
+        /* 產品資訊 */
+        .product-info {
+            gap: 8px;
+        }
+        
+        .product-name {
+            font-size: 18px;
+        }
+        
+        /* 變體資訊 */
+        .variant-info {
+            gap: 5px;
+        }
+        
+        .variant-name {
+            font-size: 16px;
+        }
+        
+        /* 價格顯示 */
+        .price-display {
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .current-price {
+            font-size: 24px;
+        }
+        
+        /* 數量輸入 */
+        .qty-input-group {
+            justify-content: center;
+        }
+        
+        .qty-input {
+            width: 80px;
+        }
+        
+        /* 按鈕 */
+        .btn-add-cart {
+            width: 100%;
+            padding: 12px 20px;
+            font-size: 16px;
+        }
+        
+        /* 篩選區域 */
+        .filter-row {
+            flex-direction: column;
+        }
+        
+        .page-header {
+            flex-direction: column;
+            gap: 15px;
+            text-align: center;
+        }
+        
+        /* 統計資訊 */
+        .stats-bar {
+            flex-direction: column;
+            gap: 15px;
+            text-align: center;
+        }
+        
+        .stats-bar .btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-fluid">
+         <!-- 頁面標題 -->
+        <div class="batch-order-container">
+            <div class="page-header">
+                <div class="page-title">
+                    <i class="fa fa-shopping-basket"></i>
+                    批量選購
+                </div>
+                <div>
+                    {% if is_headquarter %}
+                    <span class="role-badge headquarter">
+                        <i class="fa fa-building"></i> 總公司
+                    </span>
+                    {% elif is_agent %}
+                    <span class="role-badge agent">
+                        <i class="fa fa-users"></i> 代理商
+                    </span>
+                    {% elif is_distributor %}
+                    <span class="role-badge distributor">
+                        <i class="fa fa-user"></i> 分銷商
+                    </span>
+                    {% elif is_peer %}
+                    <span class="role-badge" style="background: #17a2b8; color: #fff;">
+                        <i class="fa fa-handshake"></i> 同業
+                    </span>
+                    {% else %}
+                    <span class="role-badge" style="background: #6c757d; color: #fff;">
+                        <i class="fa fa-user"></i> 一般用戶
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 篩選區域 -->
+            <div class="filter-section">
+                <form method="get" id="filterForm">
+                    <div class="filter-row">
+                        <!-- 搜尋 -->
+                        <div class="filter-group">
+                            <div class="filter-label">
+                                <i class="fa fa-search"></i>
+                                搜尋產品
+                            </div>
+                            <input type="text" 
+                                   name="q" 
+                                   class="form-control" 
+                                   placeholder="產品名稱、代碼..." 
+                                   value="{{ search_query }}">
+                        </div>
+
+                        <!-- 分類 -->
+                        <div class="filter-group">
+                            <div class="filter-label">
+                                <i class="fa fa-folder"></i>
+                                產品分類
+                            </div>
+                            <select name="category" class="form-select" onchange="this.form.submit()">
+                                <option value="">全部分類</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:'s' %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- 類型 -->
+                        <div class="filter-group">
+                            <div class="filter-label">
+                                <i class="fa fa-cube"></i>
+                                產品類型
+                            </div>
+                            <select name="type" class="form-select" onchange="this.form.submit()">
+                                <option value="">全部類型</option>
+                                {% for type_value, type_label in product_types %}
+                                <option value="{{ type_value }}" {% if selected_type == type_value %}selected{% endif %}>
+                                    {{ type_label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- 搜尋按鈕 -->
+                        <div class="filter-group" style="display: flex; align-items: flex-end;">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa fa-search"></i> 搜尋
+                            </button>
+                            <a href="{% url 'products:catalogue_agents' %}" class="btn btn-secondary ms-2">
+                                <i class="fa fa-refresh"></i> 重置
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 產品表格 -->
+            {% if products %}
+                <table class="products-table">
+                    <thead>
+                        <tr>
+                            <th>產品資訊</th>
+                            <th>變體規格</th>
+                            {% if is_headquarter and is_superuser %}
+                            <th>庫存數量</th>
+                            {% endif %}
+                            <th>價格</th>
+                            <th>數量(最多200)</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products %}
+                            {% for variant in product.variants.all %}
+                            <tr data-variant-id="{{ variant.id }}" {% if not variant.has_stock %}class="out-of-stock"{% endif %}>
+                                <!-- 產品資訊 -->
+                                <td data-label="產品資訊">
+                                    <div class="product-info">
+                                        <div class="product-name">{{ product.name }}</div>
+                                        <div class="product-category">
+                                            <i class="fa fa-tag"></i>
+                                            {{ product.category.name }}
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- 變體規格 - 添加 data-label -->
+                                <td data-label="變體規格">
+                                    <div class="variant-info">
+                                        <div class="variant-name">{{ variant.name }}</div>
+                                        <div class="variant-specs">
+                                            <i class="fa fa-clock"></i> {{ variant.days }}
+                                            <i class="fa fa-database ms-2"></i> {{ variant.data_amount }}
+                                        </div>
+                                        <div class="variant-code">{{ variant.product_code }}</div>
+                                    </div>
+                                </td>
+
+                                <!-- 庫存數量（僅總公司超級管理員可見） -->
+                                {% if is_headquarter and is_superuser %}
+                                <td data-label="庫存數量">
+                                    <div class="stock-info">
+                                        {% if variant.has_stock %}
+                                            <span class="stock-badge in-stock">
+                                                <i class="fa fa-check-circle"></i>
+                                                {{ variant.stock_quantity }}
+                                            </span>
+                                        {% else %}
+                                            <span class="stock-badge out-of-stock-badge">
+                                                <i class="fa fa-times-circle"></i>
+                                                無庫存
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                {% endif %}
+
+                                <!-- 價格 -->
+                                <td data-label="價格">
+                                    <div class="price-display">
+                                        {% if variant.display_price > 0 %}
+                                        <div class="current-price">
+                                            ${{ variant.display_price|currency }}
+                                        </div>
+                                        {% if variant.display_original_price %}
+                                        <div class="original-price">
+                                            ${{ variant.display_original_price|currency }}
+                                        </div>
+                                        <span class="discount-badge">特價</span>
+                                        {% endif %}
+                                        {% else %}
+                                        <div class="text-muted">
+                                            <i class="fa fa-ban"></i> 無價格
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+
+                                <!-- 數量 - 添加 data-label -->
+                                <td data-label="數量(最多200)">
+                                    {% if variant.has_stock and variant.display_price > 0 %}
+                                    <div class="qty-input-group">
+                                        <button type="button" class="qty-btn qty-decrease">
+                                            <i class="fa fa-minus"></i>
+                                        </button>
+                                        <input type="number" 
+                                            class="qty-input" 
+                                            value="1" 
+                                            min="1" 
+                                            max="{{ variant.stock_quantity }}"
+                                            data-variant-id="{{ variant.id }}"
+                                            data-max-stock="{{ variant.stock_quantity }}"
+                                            oninput="validateStock(this)">
+                                        <button type="button" class="qty-btn qty-increase">
+                                            <i class="fa fa-plus"></i>
+                                        </button>
+                                    </div>
+                                    {% else %}
+                                    <div class="text-muted text-center">
+                                        <i class="fa fa-ban"></i>
+                                        {% if not variant.has_stock %}
+                                        無庫存
+                                        {% elif variant.display_price <= 0 %}
+                                        未定價
+                                        {% else %}
+                                        無法購買
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </td>
+
+                                <!-- 操作 - 添加 data-label -->
+                                <td data-label="操作">
+                                    {% if variant.cart_quantity > 0 %}
+                                    <div class="cart-in-table">
+                                        <i class="fa fa-shopping-cart"></i>
+                                        已加入 {{ variant.cart_quantity }} 件
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <button type="button" 
+                                            class="btn-add-cart" 
+                                            data-variant-id="{{ variant.id }}"
+                                            data-variant-name="{{ variant.name }}"
+                                            data-product-name="{{ product.name }}"
+                                            data-price="{{ variant.display_price }}"
+                                            {% if not variant.has_stock or variant.display_price <= 0 %}
+                                            disabled
+                                            title="{% if not variant.has_stock %}無庫存{% elif variant.display_price <= 0 %}未設定價格{% endif %}"
+                                            {% endif %}>
+                                        <i class="fa fa-cart-plus"></i>
+                                        {% if variant.has_stock and variant.display_price > 0 %}
+                                        加入購物車
+                                        {% else %}
+                                        無法購買
+                                        {% endif %}
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- 分頁 -->
+                {% if is_paginated %}
+                <div class="pagination-wrapper mt-4">
+                    <nav>
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if selected_type %}type={{ selected_type }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                                    上一頁
+                                </a>
+                            </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if selected_type %}type={{ selected_type }}&{% endif %}page={{ num }}">{{ num }}</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if selected_category %}category={{ selected_category }}&{% endif %}{% if selected_type %}type={{ selected_type }}&{% endif %}page={{ page_obj.next_page_number }}">
+                                    下一頁
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+
+            {% else %}
+                <!-- 空狀態 -->
+                <div class="empty-state">
+                    <i class="fa fa-inbox"></i>
+                    <h4>沒有找到符合條件的產品</h4>
+                    <p>請嘗試調整篩選條件</p>
+                </div>
+            {% endif %}
+
+            <!-- 統計資訊 -->
+            <div class="stats-bar mt-3">
+                <div>
+                    <i class="fa fa-box"></i>
+                    共找到 <strong>{{ total_products }}</strong> 個產品
+                </div>
+                <div>
+                    <a href="{% url 'business:cart_view' %}" class="btn btn-light">
+                        <i class="fa fa-shopping-cart"></i>
+                        前往購物車
+                        <span class="badge bg-danger ms-1 cart-badge" style="display: none;">0</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scriptcontent %}
+<script>
+    // CSRF Token
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    // ❌ 移除重複的函數定義
+    // 更新 header 購物車徽章
+    function updateCartBadge(count) {
+        const badges = document.querySelectorAll('.cart-badge');
+        const cartBtn = document.querySelector('.cart-btn');
+        
+        badges.forEach(badge => {
+            badge.textContent = count;
+            badge.style.display = count > 0 ? 'inline-block' : 'none';
+        });
+        
+        // 添加/移除動畫
+        if (cartBtn) {
+            if (count > 0) {
+                cartBtn.classList.add('cart-pulse');
+            } else {
+                cartBtn.classList.remove('cart-pulse');
+            }
+        }
+    }
+
+    // 安全解析購物車 cookie
+    function parseCartCookie(cookieValue) {
+        if (!cookieValue || cookieValue === '{}' || cookieValue === '') {
+            return {};
+        }
+        
+        try {
+            return JSON.parse(cookieValue);
+        } catch (e) {
+            try {
+                const decoded = decodeURIComponent(cookieValue);
+                return JSON.parse(decoded);
+            } catch (e2) {
+                console.error('購物車解析失敗:', e2);
+                return {};
+            }
+        }
+    }
+
+    // 初始化購物車數量
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            const cartCookie = getCookie('cart') || '{}';
+            const cart = parseCartCookie(cartCookie);
+            const count = Object.values(cart).reduce((sum, item) => sum + (item.quantity || 0), 0);
+            
+            updateCartBadge(count);
+            
+            const cartBtn = document.querySelector('.cart-btn');
+            if (cartBtn && count > 0) {
+                cartBtn.classList.add('cart-pulse');
+            }
+            
+            console.log('初始化購物車：', count, '件商品');
+        } catch (e) {
+            console.error('初始化購物車失敗:', e);
+            updateCartBadge(0);
+        }
+    });
+
+    // 驗證庫存數量
+    function validateStock(input) {
+        const maxStock = parseInt(input.dataset.maxStock) || 200;
+        let value = parseInt(input.value);
+        
+        // 限制最小值為 1
+        if (value < 1 || isNaN(value)) {
+            input.value = 1;
+        }
+        
+        // 限制最大值為庫存數量（不超過 200）
+        const maxAllowed = Math.min(maxStock, 200);
+        if (value > maxAllowed) {
+            input.value = maxAllowed;
+            
+            // 顯示提示訊息
+            showWarningMessage(`此商品最多只能購買 ${maxAllowed} 件`);
+        }
+    }
+
+    // 數量增減
+    document.querySelectorAll('.qty-decrease').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const row = this.closest('tr');
+            const input = row.querySelector('.qty-input');
+            let qty = parseInt(input.value) || 1;
+            if (qty > 1) {
+                input.value = qty - 1;
+            }
+        });
+    });
+
+    document.querySelectorAll('.qty-increase').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const row = this.closest('tr');
+            const input = row.querySelector('.qty-input');
+            const maxStock = parseInt(input.dataset.maxStock) || 100;
+            let qty = parseInt(input.value) || 1;
+            
+            // 最多只能到庫存數量（不超過 100）
+            const maxAllowed = Math.min(maxStock, 100);
+            if (qty < maxAllowed) {
+                input.value = qty + 1;
+            } else {
+                showWarningMessage(`此商品最多只能購買 ${maxAllowed} 件`);
+            }
+        });
+    });
+
+    // 添加：數量輸入驗證（使用新的 validateStock 函數）
+    // document.querySelectorAll('.qty-input').forEach(input => {
+    //     input.addEventListener('input', function() {
+    //         let value = parseInt(this.value);
+            
+    //         // 限制最小值為 1
+    //         if (value < 1 || isNaN(value)) {
+    //             this.value = 1;
+    //         }
+            
+    //         // 限制最大值為 100
+    //         if (value > 100) {
+    //             this.value = 100;
+    //         }
+    //     });
+        
+    //     // 防止輸入非數字
+    //     input.addEventListener('keypress', function(e) {
+    //         if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') {
+    //             e.preventDefault();
+    //         }
+    //     });
+    // });
+
+    document.querySelectorAll('.qty-input').forEach(input => {
+        input.addEventListener('input', function() {
+            validateStock(this);
+        });
+        
+        // 防止輸入非數字
+        input.addEventListener('keypress', function(e) {
+            if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') {
+                e.preventDefault();
+            }
+        });
+    });
+    
+    // ✅ 顯示警告訊息
+    function showWarningMessage(message) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'alert alert-warning position-fixed';
+        msgDiv.style.cssText = `
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            min-width: 300px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideDown 0.3s ease-out;
+        `;
+        msgDiv.innerHTML = `
+            <i class="fa fa-exclamation-triangle"></i>
+            ${message}
+        `;
+        
+        document.body.appendChild(msgDiv);
+        
+        setTimeout(() => {
+            msgDiv.style.animation = 'slideUp 0.3s ease-out';
+            setTimeout(() => msgDiv.remove(), 300);
+        }, 2500);
+    }
+
+    // 加入購物車（修正版）
+    document.querySelectorAll('.btn-add-cart').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const variantId = this.dataset.variantId;
+            const variantName = this.dataset.variantName;
+            const productName = this.dataset.productName;
+            const row = this.closest('tr');
+            const qtyInput = row.querySelector('.qty-input');
+            const qty = parseInt(qtyInput.value) || 1;
+            
+            console.log('=== 加入購物車開始 ===');
+            console.log('變體 ID:', variantId);
+            console.log('變體名稱:', variantName);
+            console.log('產品名稱:', productName);
+            console.log('數量:', qty);
+            
+            // 顯示載入中
+            const originalHtml = this.innerHTML;
+            const originalBg = this.style.background;
+            this.disabled = true;
+            this.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 處理中...';
+            
+            const url = `/business/cart/add/${variantId}/`;
+            console.log('請求 URL:', url);
+            
+            // ✅ 使用 URLSearchParams
+            const formData = new URLSearchParams();
+            formData.append('quantity', qty);
+            
+            console.log('請求數據:', formData.toString());
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formData.toString(),
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                console.log('回應狀態:', response.status);
+                console.log('回應類型:', response.headers.get('Content-Type'));
+                
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        console.error('錯誤回應:', text.substring(0, 500));
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    });
+                }
+                
+                return response.json();
+            })
+            .then(data => {
+                console.log('成功回應:', data);
+                
+                if (data.success) {
+                    // 成功提示
+                    this.innerHTML = '<i class="fa fa-check"></i> 已加入';
+                    this.style.background = '#28a745';
+                    
+                    // 更新購物車徽章
+                    updateCartBadge(data.cart_count);
+                    
+                    // 顯示成功訊息
+                    showSuccessMessage(data.message || `已將 ${variantName} × ${qty} 加入購物車`);
+                    
+                    // 1.5 秒後重新載入頁面
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    throw new Error(data.error || '加入失敗');
+                }
+            })
+            .catch(error => {
+                console.error('錯誤:', error);
+                alert(`❌ 加入失敗\n\n錯誤訊息：${error.message}\n\n請查看控制台以獲取更多資訊`);
+                this.innerHTML = originalHtml;
+                this.style.background = originalBg;
+                this.disabled = false;
+            });
+        });
+    });
+    
+    // 顯示成功訊息
+    function showSuccessMessage(message) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'alert alert-success position-fixed';
+        msgDiv.style.cssText = `
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            min-width: 300px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideDown 0.3s ease-out;
+        `;
+        msgDiv.innerHTML = `
+            <i class="fa fa-check-circle"></i>
+            ${message}
+        `;
+        
+        document.body.appendChild(msgDiv);
+        
+        setTimeout(() => {
+            msgDiv.style.animation = 'slideUp 0.3s ease-out';
+            setTimeout(() => msgDiv.remove(), 300);
+        }, 2000);
+    }
+    
+    // 動畫樣式
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+        }
+    `;
+    document.head.appendChild(style);
+</script>
+{% endblock %}

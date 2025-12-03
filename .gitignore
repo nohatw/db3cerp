@@ -1,0 +1,11 @@
+venv/
+bin/
+lib/
+media/
+.idea/
+**/__pycache__
+**/*.pyc
+collectedstatic/
+logs/
+.DS_Store
+db.sqlite3

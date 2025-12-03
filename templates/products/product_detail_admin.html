@@ -1,0 +1,445 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}<title>{{ product.name }} - 產品詳情 - DB3C ERP</title>{% endblock %}
+
+{% block css %}
+<style>
+    .product-info-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 30px;
+        margin-bottom: 20px;
+    }
+    
+    .variant-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        margin-bottom: 15px;
+    }
+    
+    .variant-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .status-badge {
+        padding: 6px 12px;
+        border-radius: 15px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .status-active {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-inactive {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .type-badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-block;
+    }
+    
+    .type-esim {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+    
+    .type-esimimg {
+        background: #f3e5f5;
+        color: #7b1fa2;
+    }
+    
+    .type-rechargeable {
+        background: #fff3e0;
+        color: #e65100;
+    }
+    
+    .type-physical {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+    
+    .stock-badge {
+        padding: 6px 12px;
+        border-radius: 15px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    
+    .stock-available {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .stock-low {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .stock-out {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .price-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    
+    .price-item {
+        background: #f8f9fa;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+    }
+    
+    .price-label {
+        font-weight: 600;
+        color: #6c757d;
+        margin-right: 5px;
+    }
+    
+    .price-value {
+        font-weight: bold;
+        color: #28a745;
+    }
+    
+    .stats-box {
+        text-align: center;
+        padding: 20px;
+        background: white;
+        border-radius: 10px;
+        margin-bottom: 15px;
+    }
+    
+    .stats-box i {
+        font-size: 48px;
+        margin-bottom: 10px;
+        opacity: 0.8;
+    }
+    
+    .stats-box h3 {
+        margin: 10px 0 5px 0;
+        font-size: 32px;
+        font-weight: bold;
+    }
+    
+    .stats-box small {
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <!-- 頁面標題 -->
+        <div class="page-header d-print-none">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h2 class="page-title">
+                        <i class="ti ti-box"></i>
+                        產品詳情
+                    </h2>
+                    <div class="text-muted mt-1">
+                        {{ product.name }}
+                    </div>
+                </div>
+                <div class="col-auto ms-auto d-print-none">
+                    <div class="btn-group">
+                        <a href="{% url 'products:product_list' %}" class="btn btn-outline-secondary">
+                            <i class="ti ti-arrow-left"></i> 返回列表
+                        </a>
+                        <a href="{% url 'products:product_update' pk=product.id %}" class="btn btn-primary">
+                            <i class="ti ti-edit"></i> 編輯產品
+                        </a>
+                        <a href="{% url 'products:product_delete' pk=product.id %}" class="btn btn-danger">
+                            <i class="ti ti-trash"></i> 刪除
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 產品資訊卡片 -->
+        <div class="product-info-card">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h2 class="mb-3">{{ product.name }}</h2>
+                    <p class="mb-3">
+                        {% if product.description %}
+                        {{ product.description }}
+                        {% else %}
+                        <i>尚無描述</i>
+                        {% endif %}
+                    </p>
+                    <div class="d-flex align-items-center gap-3">
+                        <div>
+                            <i class="ti ti-category"></i>
+                            <strong>分類：</strong> {{ product.category.name }}
+                        </div>
+                        <div>
+                            <i class="ti ti-sort-ascending"></i>
+                            <strong>排序：</strong> {{ product.sort_order }}
+                        </div>
+                        <div>
+                            {% if product.status == 'ACTIVE' %}
+                            <span class="badge bg-success">
+                                <i class="ti ti-circle-check"></i> 上架中
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary">
+                                <i class="ti ti-circle-x"></i> 下架中
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stats-box">
+                        <i class="ti ti-versions" style="color: white;"></i>
+                        <h3 class="text-danger">{{ total_variants }}</h3>
+                        <small>變體總數</small>
+                        <div class="mt-2">
+                            <small>上架中：{{ active_variants }} 個</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 產品資訊詳情卡片 -->
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="ti ti-info-circle"></i>
+                            產品資訊
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <strong>產品 ID：</strong>
+                            <span class="text-muted">{{ product.id }}</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>產品名稱：</strong>
+                            <span class="text-muted">{{ product.name }}</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>產品分類：</strong>
+                            <span class="text-muted">{{ product.category.name }}</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>產品狀態：</strong>
+                            {% if product.status == 'ACTIVE' %}
+                            <span class="badge bg-success">上架中</span>
+                            {% else %}
+                            <span class="badge bg-secondary">下架中</span>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <strong>排序：</strong>
+                            <span class="text-muted">{{ product.sort_order }}</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>建立時間：</strong>
+                            <span class="text-muted">{{ product.created_at|date:"Y-m-d H:i" }}</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>更新時間：</strong>
+                            <span class="text-muted">{{ product.updated_at|date:"Y-m-d H:i" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <!-- 描述區域 -->
+                {% if product.description %}
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="ti ti-file-text"></i>
+                            產品描述
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">{{ product.description|linebreaks }}</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        
+
+        <!-- 變體列表 -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="ti ti-versions"></i>
+                    產品變體列表（{{ variants|length }} 個）
+                </h3>
+            </div>
+            <div class="card-body p-0">
+                {% if variants %}
+                <div class="table-responsive">
+                    <table class="table table-vcenter card-table">
+                        <thead>
+                            <tr>
+                                <th>變體名稱</th>
+                                <th class="text-center">產品類型</th>
+                                <th class="text-center">產品代碼</th>
+                                <th class="text-center">規格</th>
+                                <th>價格資訊</th>
+                                <th class="text-center">庫存</th>
+                                <th class="text-center">狀態</th>
+                                <th class="text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for variant in variants %}
+                            <tr class="variant-card">
+                                <td>
+                                    <div>
+                                        <strong>{{ variant.name }}</strong>
+                                        {% if variant.description %}
+                                        <br>
+                                        <small class="text-muted">{{ variant.description|truncatewords:10 }}</small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    {% if variant.product_type == 'esim' %}
+                                    <span class="type-badge type-esim">
+                                        <i class="ti ti-device-mobile"></i> eSIM
+                                    </span>
+                                    {% elif variant.product_type == 'esimimg' %}
+                                    <span class="type-badge type-esimimg">
+                                        <i class="ti ti-photo"></i> 圖庫eSIM
+                                    </span>
+                                    {% elif variant.product_type == 'rechargeable' %}
+                                    <span class="type-badge type-rechargeable">
+                                        <i class="ti ti-reload"></i> 充值卡
+                                    </span>
+                                    {% elif variant.product_type == 'physical' %}
+                                    <span class="type-badge type-physical">
+                                        <i class="ti ti-credit-card"></i> 成品卡
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <code>{{ variant.product_code|default:"未設定" }}</code>
+                                    {% if variant.sku %}
+                                    <br>
+                                    <small class="text-muted">SKU: {{ variant.sku }}</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if variant.days %}
+                                    <div><i class="ti ti-calendar"></i> {{ variant.days }}</div>
+                                    {% endif %}
+                                    {% if variant.data_amount %}
+                                    <div><i class="ti ti-database"></i> {{ variant.data_amount }}</div>
+                                    {% endif %}
+                                    {% if not variant.days and not variant.data_amount %}
+                                    <small class="text-muted">未設定</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="price-group">
+                                        {% if variant.price %}
+                                        <div class="price-item">
+                                            <span class="price-label">零售：</span>
+                                            <span class="price-value">NT$ {{ variant.price|floatformat:0 }}</span>
+                                        </div>
+                                        {% endif %}
+                                        {% if variant.price_sales %}
+                                        <div class="price-item">
+                                            <span class="price-label">特價：</span>
+                                            <span class="price-value">NT$ {{ variant.price_sales|floatformat:0 }}</span>
+                                        </div>
+                                        {% endif %}
+                                        {% if variant.price_agent %}
+                                        <div class="price-item">
+                                            <span class="price-label">代理：</span>
+                                            <span class="price-value">NT$ {{ variant.price_agent|floatformat:0 }}</span>
+                                        </div>
+                                        {% endif %}
+                                        {% if variant.price_sales_agent %}
+                                        <div class="price-item">
+                                            <span class="price-label">代理特價：</span>
+                                            <span class="price-value">NT$ {{ variant.price_sales_agent|floatformat:0 }}</span>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    {% if variant.total_stock > 100 %}
+                                    <span class="stock-badge stock-available">
+                                        <i class="ti ti-circle-check"></i> {{ variant.total_stock }}
+                                    </span>
+                                    {% elif variant.total_stock > 0 %}
+                                    <span class="stock-badge stock-low">
+                                        <i class="ti ti-alert-circle"></i> {{ variant.total_stock }}
+                                    </span>
+                                    {% else %}
+                                    <span class="stock-badge stock-out">
+                                        <i class="ti ti-circle-x"></i> 缺貨
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if variant.status == 'ACTIVE' %}
+                                    <span class="status-badge status-active">
+                                        <i class="ti ti-circle-check"></i> 上架中
+                                    </span>
+                                    {% else %}
+                                    <span class="status-badge status-inactive">
+                                        <i class="ti ti-circle-x"></i> 下架中
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'products:variant_update' pk=variant.id %}" 
+                                           class="btn btn-sm btn-outline-secondary"    
+                                           title="編輯產品變體">
+                                            <i class="ti ti-edit"></i> 編輯
+                                        </a>
+                                    </div>
+                                </td>
+                                
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty py-5">
+                    <div class="text-center">
+                        <i class="ti ti-package-off" style="font-size: 64px; color: #ccc;"></i>
+                        <h3 class="mt-3 text-muted">此產品尚無變體</h3>
+                        <p class="text-muted">請在產品管理中新增變體</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

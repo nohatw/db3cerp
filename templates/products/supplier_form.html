@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+<title>{% if object %}編輯供應商{% else %}新增供應商{% endif %} - DB3C ERP</title>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <!-- 頁面標題 -->
+        <div class="page-header d-print-none">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h2 class="page-title">
+                        <i class="ti ti-building-store"></i>
+                        {% if object %}編輯供應商{% else %}新增供應商{% endif %}
+                    </h2>
+                </div>
+                <div class="col-auto ms-auto">
+                    <a href="{% url 'products:supplier_list' %}" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left"></i> 返回列表
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 表單 -->
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                <div class="card">
+                    <div class="card-body">
+                        <form method="post">
+                            {% csrf_token %}
+                            
+                            {% if form.errors %}
+                            <div class="alert alert-danger">
+                                <h4 class="alert-title">表單驗證錯誤</h4>
+                                <ul class="mb-0">
+                                    {% for field in form %}
+                                        {% for error in field.errors %}
+                                        <li>{{ field.label }}：{{ error }}</li>
+                                        {% endfor %}
+                                    {% endfor %}
+                                    {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="mb-3">
+                                <label class="form-label required">供應商名稱</label>
+                                {{ form.name }}
+                                {% if form.name.help_text %}
+                                <small class="form-hint">{{ form.name.help_text }}</small>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label required">供應商代碼</label>
+                                {{ form.supplier_code }}
+                                <small class="form-hint">唯一識別碼，不可重複</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">描述</label>
+                                {{ form.description }}
+                                <small class="form-hint">供應商的詳細描述</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">排序</label>
+                                {{ form.sort_order }}
+                                <small class="form-hint">數字越小越靠前</small>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'products:supplier_list' %}" class="btn btn-link">
+                                    取消
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="ti ti-device-floppy"></i>
+                                    {% if object %}更新{% else %}建立{% endif %}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

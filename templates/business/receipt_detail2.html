@@ -1,0 +1,341 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+{% load currency %}
+
+{% block title %}<title>收據詳情 - {{ receipt.receipt_number }} - DB3C ERP</title>{% endblock %}
+
+{% block css %}
+<style>
+    /* 收據容器 */
+    .receipt-container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+        padding: 40px;
+    }
+    
+    /* 收據標題 */
+    .receipt-title {
+        text-align: center;
+        margin-bottom: 40px;
+        padding-bottom: 20px;
+        border-bottom: 3px solid #0d6efd;
+    }
+    
+    .receipt-title h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #0d6efd;
+        margin-bottom: 10px;
+    }
+    
+    .receipt-title .subtitle {
+        color: #6c757d;
+        font-size: 1.1rem;
+    }
+    
+    /* 收據資訊區塊 */
+    .receipt-info-section {
+        margin-bottom: 30px;
+    }
+    
+    .receipt-info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .receipt-info-row:last-child {
+        border-bottom: none;
+    }
+    
+    .receipt-info-label {
+        color: #6c757d;
+        font-weight: 600;
+    }
+    
+    .receipt-info-value {
+        font-weight: 600;
+        text-align: right;
+    }
+    
+    /* 收據明細表格 */
+    .receipt-items-table {
+        width: 100%;
+        margin: 30px 0;
+        border-collapse: collapse;
+    }
+    
+    .receipt-items-table thead {
+        background: #f8f9fa;
+    }
+    
+    .receipt-items-table th {
+        padding: 15px;
+        text-align: left;
+        font-weight: 700;
+        color: #495057;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .receipt-items-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .receipt-items-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .receipt-items-table .text-end {
+        text-align: right;
+    }
+    
+    /* 總計區域 */
+    .receipt-total {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 3px solid #0d6efd;
+    }
+    
+    .receipt-total-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        font-size: 1.3rem;
+        font-weight: 700;
+    }
+    
+    .receipt-total-amount {
+        color: #28a745;
+        font-size: 2rem;
+    }
+    
+    /* 備註區域 */
+    .receipt-remark {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border-left: 4px solid #0d6efd;
+    }
+    
+    /* 操作按鈕 */
+    .receipt-actions {
+        margin-top: 40px;
+        padding-top: 30px;
+        border-top: 2px solid #e9ecef;
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+    }
+    
+    /* 打印樣式 */
+    @media print {
+        .page-header,
+        .receipt-actions,
+        .btn {
+            display: none !important;
+        }
+        
+        .receipt-container {
+            box-shadow: none;
+            padding: 0;
+        }
+    }
+    
+    /* 標籤樣式 */
+    .badge-custom {
+        padding: 8px 15px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <!-- 頁面標題 -->
+        <div class="page-header d-print-none">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h2 class="page-title">
+                        <i class="ti ti-receipt"></i> 收據詳情
+                    </h2>
+                    <div class="text-muted">{{ receipt.receipt_number }}</div>
+                </div>
+                <div class="col-auto">
+                    <a href="{% url 'business:receipt_list' %}" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left"></i> 返回列表
+                    </a>
+                    <a href="{% url 'business:receipt_print' pk=receipt.id %}" 
+                       class="btn btn-success" 
+                       target="_blank">
+                        <i class="ti ti-download"></i> 列印 PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 收據內容 -->
+        <div class="receipt-container">
+            <!-- 收據標題 -->
+            <div class="receipt-title">
+                <h1><i class="ti ti-receipt"></i> 收據</h1>
+                <div class="subtitle">RECEIPT</div>
+            </div>
+
+            <!-- 收據基本資訊 -->
+            <div class="receipt-info-section">
+                <div class="receipt-info-row">
+                    <div class="receipt-info-label">收據編號</div>
+                    <div class="receipt-info-value">{{ receipt.receipt_number }}</div>
+                </div>
+                
+                <div class="receipt-info-row">
+                    <div class="receipt-info-label">收據日期</div>
+                    <div class="receipt-info-value">{{ receipt.date|date:"Y 年 m 月 d 日" }}</div>
+                </div>
+                
+                <div class="receipt-info-row">
+                    <div class="receipt-info-label">收據抬頭</div>
+                    <div class="receipt-info-value">{{ receipt.receipt_to|default:"（無抬頭）" }}</div>
+                </div>
+                
+                {% if receipt.taxid %}
+                <div class="receipt-info-row">
+                    <div class="receipt-info-label">統一編號</div>
+                    <div class="receipt-info-value">{{ receipt.taxid }}</div>
+                </div>
+                {% endif %}
+                
+                {% if receipt.order %}
+                <div class="receipt-info-row">
+                    <div class="receipt-info-label">關聯訂單</div>
+                    <div class="receipt-info-value">
+                        <a href="{% url 'business:order_detail' pk=receipt.order.id %}" class="text-primary">
+                            #{{ receipt.order.id }}
+                        </a>
+                    </div>
+                </div>
+                {% else %}
+                <div class="receipt-info-row">
+                    <div class="receipt-info-label">收據類型</div>
+                    <div class="receipt-info-value">
+                        <span class="badge badge-custom bg-info">手動建立</span>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="receipt-info-row">
+                    <div class="receipt-info-label">建立人</div>
+                    <div class="receipt-info-value">
+                        {{ receipt.created_by.fullname|default:receipt.created_by.username }}
+                    </div>
+                </div>
+                
+                <div class="receipt-info-row">
+                    <div class="receipt-info-label">建立時間</div>
+                    <div class="receipt-info-value">
+                        {{ receipt.created_at|date:"Y-m-d H:i:s" }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 收據明細 -->
+            <h3 class="mt-4 mb-3">
+                <i class="ti ti-list"></i> 產品明細
+            </h3>
+            
+            <table class="receipt-items-table">
+                <thead>
+                    <tr>
+                        <th style="width: 10%;">序號</th>
+                        <th style="width: 40%;">產品名稱</th>
+                        <th style="width: 20%;" class="text-end">產品代碼</th>
+                        <th style="width: 10%;" class="text-end">數量</th>
+                        <th style="width: 15%;" class="text-end">單價</th>
+                        <th style="width: 15%;" class="text-end">小計</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in receipt.items.all %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <strong>{{ item.product_name }}</strong>
+                            {% if item.order_product %}
+                            <br>
+                            <small class="text-muted">
+                                關聯訂單產品 #{{ item.order_product.id }}
+                            </small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if item.product_code %}
+                            <code>{{ item.product_code }}</code>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">{{ item.quantity }}</td>
+                        <td class="text-end">${{ item.unit_price|currency }}</td>
+                        <td class="text-end">
+                            <strong>${{ item.subtotal|currency }}</strong>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- 總計 -->
+            <div class="receipt-total">
+                <div class="receipt-total-row">
+                    <div>總計金額</div>
+                    <div class="receipt-total-amount">
+                        ${{ receipt.total_amount|currency }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 備註 -->
+            {% if receipt.remark %}
+            <div class="receipt-remark">
+                <h5><i class="ti ti-note"></i> 備註</h5>
+                <p class="mb-0">{{ receipt.remark }}</p>
+            </div>
+            {% endif %}
+
+            <!-- 頁尾資訊 -->
+            <div class="mt-5 text-center text-muted small">
+                <p>本收據由 DB3C ERP 系統自動生成</p>
+                <p>列印時間：{{ now|date:"Y-m-d H:i:s" }}</p>
+            </div>
+        </div>
+
+        <!-- 操作按鈕（不列印） -->
+        <div class="receipt-actions d-print-none">
+            <a href="{% url 'business:receipt_list' %}" class="btn btn-outline-secondary">
+                <i class="ti ti-arrow-left"></i> 返回列表
+            </a>
+            
+            {% if receipt.order %}
+            <a href="{% url 'business:order_detail' pk=receipt.order.id %}" class="btn btn-outline-primary">
+                <i class="ti ti-shopping-cart"></i> 查看訂單
+            </a>
+            {% endif %}
+            
+            <a href="{% url 'business:receipt_print' pk=receipt.id %}" 
+                class="btn btn-success" 
+                target="_blank">
+                <i class="ti ti-download"></i> 列印 PDF
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
