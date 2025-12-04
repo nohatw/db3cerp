@@ -30,9 +30,11 @@
                     <li class="dropdown"><a class="nav-link menu-title" href="{% url 'business:order_list' %}">
                         <i data-feather="clipboard"></i><span>訂單</span></a>
                     </li>
+                    {% if is_headquarter_admin %}
                     <li class="dropdown"><a class="nav-link menu-title" href="{% url 'business:receipt_list' %}">
                         <i data-feather="box"></i><span>收據</span></a>
                     </li>
+                    {% endif %}
                     
                     
                     <li class="dropdown"><a class="nav-link menu-title" href="javascript:void(0)">
