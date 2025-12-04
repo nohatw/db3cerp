@@ -112,7 +112,10 @@
         font-weight: 600;
         color: #212529;
     }
-    
+    .bg-active {
+        background-color: #28a745;
+        color: white;
+    }
     @media (max-width: 768px) {
         .table-responsive {
             font-size: 13px;
@@ -376,11 +379,11 @@
                             <!-- 狀態 -->
                             <td>
                                 {% if variant.status == 'ACTIVE' %}
-                                <span class="badge bg-success">上架</span>
+                                <span class="badge bg-active">上架</span>
                                 {% elif variant.status == 'INACTIVE' %}
-                                <span class="badge bg-secondary">下架</span>
+                                <span class="badge bg-danger">下架</span>
                                 {% else %}
-                                <span class="badge bg-warning">封存</span>
+                                <span class="badge bg-dark">封存</span>
                                 {% endif %}
                             </td>
 
