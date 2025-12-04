@@ -677,30 +677,37 @@ def remove_from_cart(request, variant_id):
 @login_required
 def cart_view(request):
     """
-    顯示購物車內容
+    購物車頁面
     
-    ✅ 更新：使用角色定價系統，確保價格與用戶角色一致
+    功能：
+    1. 顯示購物車商品列表
+    2. 可修改商品數量
+    3. 總公司管理員可修改單價
+    4. 顯示產品類型標識
     """
+    import json
+    import logging
     from urllib.parse import unquote
+    from decimal import Decimal
     
-    # 1. 從 cookie 獲取購物車
+    logger = logging.getLogger(__name__)
+    user = request.user
+    
+    # 從 cookie 獲取購物車
     cart = {}
     cart_cookie = request.COOKIES.get('cart', '{}')
     try:
         decoded_cookie = unquote(cart_cookie)
         cart = json.loads(decoded_cookie)
-    except (json.JSONDecodeError, ValueError):
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.error(f'購物車 cookie 解析失敗：{str(e)}')
         cart = {}
     
-    # 2. 準備購物車項目列表
+    # 構建購物車項目列表
     cart_items = []
-    cart_count = 0
-    cart_total = Decimal('0')
-    
-    user = request.user
+    total = Decimal('0')
     
     for variant_id, item_data in cart.items():
-        # ✅ 驗證價格：確保購物車中的價格與當前用戶角色價格一致
         try:
             variant = Variant.objects.select_related('product').get(
                 id=variant_id,
@@ -708,40 +715,39 @@ def cart_view(request):
                 product__status='ACTIVE'
             )
             
-            # 使用 products/utils.py 的統一定價函數獲取當前價格
-            current_price, _, _ = get_variant_price_for_user(variant, user)
+            quantity = item_data.get('quantity', 1)
+            unit_price = Decimal(str(item_data.get('unit_price', 0)))
+            subtotal = unit_price * quantity
             
-            # 如果價格有變動，使用當前價格
-            unit_price = Decimal(str(current_price))
+            # 添加產品類型信息
+            cart_items.append({
+                'variant_id': variant.id,
+                'product_name': variant.product.name,
+                'variant_name': variant.name,
+                'product_type': variant.product_type,  # 產品類型
+                'product_type_display': variant.get_product_type_display(),  # ✅ 新增：產品類型顯示名稱
+                'quantity': quantity,
+                'unit_price': unit_price,
+                'subtotal': subtotal,
+            })
+            
+            total += subtotal
             
         except Variant.DoesNotExist:
-            # 如果變體不存在，跳過此項目
+            logger.warning(f'變體 {variant_id} 不存在或已下架，已從購物車移除')
             continue
-        
-        quantity = item_data['quantity']
-        subtotal = quantity * unit_price
-        
-        cart_items.append({
-            'variant_id': variant_id,
-            'product_name': item_data['product_name'],
-            'variant_name': item_data['variant_name'],
-            'quantity': quantity,
-            'unit_price': unit_price,
-            'subtotal': subtotal
-        })
-        
-        cart_count += quantity
-        cart_total += subtotal
+        except Exception as e:
+            logger.error(f'處理購物車項目 {variant_id} 時出錯：{str(e)}')
+            continue
     
-    # 3. 準備 context
     context = {
         'cart_items': cart_items,
-        'cart_count': cart_count,
-        'total': cart_total,
+        'cart_count': sum(item['quantity'] for item in cart_items),
+        'total': total,
         'is_headquarter': is_headquarter_admin(user),
     }
+    
     return render(request, 'business/cart_view.html', context)
-
 
 # 結帳頁面
 @login_required

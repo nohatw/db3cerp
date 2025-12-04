@@ -351,6 +351,54 @@
         margin-top: 3px;
     }
 
+    /* 產品類型徽章樣式 */
+    .product-type-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-left: 8px;
+    }
+    
+    .product-type-badge.esim {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+    }
+    
+    .product-type-badge.esimimg {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: #fff;
+    }
+    
+    .product-type-badge.rechargeable {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: #fff;
+    }
+    
+    .product-type-badge.physical {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        color: #0f0f0f;
+    }
+    
+    .product-type-icon {
+        margin-right: 4px;
+        font-size: 10px;
+    }
+    
+    /* 響應式：手機版調整 */
+    @media (max-width: 576px) {
+        .product-type-badge {
+            font-size: 10px;
+            padding: 3px 8px;
+            margin-left: 5px;
+        }
+    }
+
+    
+
     /* 響應式設計 */
     @media (max-width: 768px) {
         .cart-container {
@@ -454,9 +502,31 @@
                             {% for item in cart_items %}
                             <div class="cart-item-card" data-variant-id="{{ item.variant_id }}">
                                 <!-- 卡片頭部 -->
-                                <div class="cart-item-header d-flex justify-content-between align-items-center">
+                                <div class="cart-item-header d-flex justify-content-between align-items-start">
                                     <div class="product-info">
-                                        <span class="product-name">{{ item.product_name }}</span>
+                                        <div class="d-flex align-items-center flex-wrap">
+                                            <span class="product-name">{{ item.product_name }}</span>
+                                            
+                                            <!-- 產品類型徽章 -->
+                                            {% if item.product_type == 'esim' %}
+                                                <span class="product-type-badge esim badge">
+                                                    {{ item.product_type_display }}
+                                                </span>
+                                            {% elif item.product_type == 'esimimg' %}
+                                                <span class="product-type-badge esimimg">
+                                                    {{ item.product_type_display }}
+                                                </span>
+                                            {% elif item.product_type == 'rechargeable' %}
+                                                <span class="product-type-badge rechargeable">
+                                                    {{ item.product_type_display }}
+                                                </span>
+                                            {% elif item.product_type == 'physical' %}
+                                                <span class="product-type-badge physical">
+                                                    {{ item.product_type_display }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                        
                                         <span class="variant-name">
                                             <i class="fa fa-tag"></i>
                                             {{ item.variant_name }}
