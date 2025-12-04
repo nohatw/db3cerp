@@ -124,6 +124,59 @@ class StockCreateForm(forms.ModelForm):
         
         return cleaned_data
 
+
+class StockUpdateForm(forms.ModelForm):
+    """
+    庫存修改表單
+    
+    限制：
+    - 不允許修改產品變體（product）
+    - ESIMIMG 類型不允許修改 QR 圖片
+    - 只能修改基本資訊：名稱、描述、數量、過期時間、使用狀態
+    """
+    
+    class Meta:
+        model = Stock
+        fields = ['name', 'description', 'quantity', 'expire_date', 'is_used']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '庫存名稱'
+            }),
+            'description': forms.Textarea(attrs={
+                'rows': 3,
+                'class': 'form-control',
+                'placeholder': '庫存描述'
+            }),
+            'quantity': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '0'
+            }),
+            'expire_date': forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'form-control'
+            }),
+            'is_used': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+        labels = {
+            'name': '庫存名稱',
+            'description': '庫存描述',
+            'quantity': '庫存數量',
+            'expire_date': '過期時間',
+            'is_used': '標記為已使用',
+        }
+        help_texts = {
+            'quantity': '修改數量不會影響 initial_quantity',
+            'is_used': '勾選後此庫存將標記為已使用',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['expire_date'].required = False
+
+
 class AgentDistributorPricingForm(forms.ModelForm):
     """
     代理商設定經銷價格的表單

@@ -9,7 +9,7 @@ from django.db.models import Q, Prefetch, Count, Min, Sum
 from products.models import Supplier, Product, Variant, Category, Stock, AgentDistributorPricing
 from products.constant import ProductStatus, VariantStatus, ProductType
 from django.db import transaction
-from products.forms import StockCreateForm, AgentDistributorPricingForm
+from products.forms import StockCreateForm, StockUpdateForm, AgentDistributorPricingForm
 from accounts.utils import (
     is_headquarter_admin, 
     is_agent, 
@@ -721,6 +721,114 @@ class StockCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             messages.error(self.request, f'❌ 建立失敗：{str(e)}')
             return self.form_invalid(form)
 
+# 庫存修改
+class StockUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    """
+    庫存修改視圖
+    
+    權限：只有總公司管理員可以修改
+    
+    功能：
+    1. 修改庫存基本資訊
+    2. 修改庫存數量
+    3. 更新過期時間
+    4. 標記使用狀態
+    
+    限制：
+    - 不允許修改產品變體（product）
+    - ESIMIMG 類型不允許修改 QR 圖片
+    """
+    model = Stock
+    form_class = StockUpdateForm
+    template_name = 'products/stock_update.html'
+    success_url = reverse_lazy('products:stock_list')
+    
+    def test_func(self):
+        return is_headquarter_admin(self.request.user)
+    
+    def handle_no_permission(self):
+        messages.error(self.request, '❌ 您沒有權限修改庫存')
+        return redirect('products:stock_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        stock = self.object
+        context['stock'] = stock
+        context['is_esimimg'] = stock.product.product_type == ProductType.ESIMIMG
+        return context
+    
+    def form_valid(self, form):
+        stock = form.save()
+        
+        messages.success(
+            self.request,
+            f'✅ 已更新庫存：{stock.name}'
+        )
+        
+        return redirect(self.success_url)
+    
+    def form_invalid(self, form):
+        messages.error(self.request, '❌ 修改失敗，請檢查輸入內容')
+        return super().form_invalid(form)
+
+# 庫存刪除
+class StockDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    """
+    庫存刪除視圖
+    
+    權限：只有總公司管理員可以刪除
+    
+    警告：
+    - 刪除已使用的庫存可能會影響訂單記錄
+    - 刪除 ESIMIMG 庫存會同時刪除關聯的 QR 圖片檔案
+    """
+    model = Stock
+    template_name = 'products/stock_confirm_delete.html'
+    success_url = reverse_lazy('products:stock_list')
+    
+    def test_func(self):
+        return is_headquarter_admin(self.request.user)
+    
+    def handle_no_permission(self):
+        messages.error(self.request, '❌ 您沒有權限刪除庫存')
+        return redirect('products:stock_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        stock = self.object
+        
+        context['stock'] = stock
+        context['is_esimimg'] = stock.product.product_type == ProductType.ESIMIMG
+        context['has_qr_image'] = bool(stock.qr_img)
+        
+        # 檢查是否有關聯訂單（透過 used_stocks）
+        from business.models import OrderProduct
+        related_orders = OrderProduct.objects.filter(
+            used_stocks__contains=[stock.id]
+        ).select_related('order').distinct()
+        
+        context['has_related_orders'] = related_orders.exists()
+        context['related_orders_count'] = related_orders.count()
+        
+        return context
+    
+    def delete(self, request, *args, **kwargs):
+        stock = self.get_object()
+        stock_name = stock.name
+        product_name = stock.product.name
+        has_image = bool(stock.qr_img)
+        
+        # 執行刪除
+        response = super().delete(request, *args, **kwargs)
+        
+        # 成功訊息
+        msg = f'✅ 已刪除庫存：{stock_name} ({product_name})'
+        if has_image:
+            msg += ' 及其關聯的 QR 圖片'
+        
+        messages.success(request, msg)
+        
+        return response
 
 # 供應商列表
 class SupplierListView(LoginRequiredMixin, UserPassesTestMixin, ListView):

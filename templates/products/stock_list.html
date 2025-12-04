@@ -342,6 +342,7 @@
                                         <th style="width: 10%; text-align: center;">QR Code</th>
                                         <th style="width: 10%;">過期時間</th>
                                         <th style="width: 10%; text-align: center;">狀態</th>
+                                        <th>操作</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -460,6 +461,25 @@
                                                     <i class="ti ti-circle-check"></i> 可用
                                                 </span>
                                             {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                             
+                                                
+                                                <!-- Edit button -->
+                                                <a href="{% url 'products:stock_update' stock.id %}" 
+                                                class="btn btn-primary" 
+                                                title="修改">
+                                                    <i class="ti ti-edit"></i> 編輯
+                                                </a>
+                                                
+                                                <!-- Delete button -->
+                                                <a href="{% url 'products:stock_delete' stock.id %}" 
+                                                class="btn btn-danger" 
+                                                title="刪除">
+                                                    <i class="ti ti-trash"></i> 刪除
+                                                </a>
+                                            </div>
                                         </td>
                                     </tr>
                                     
@@ -604,6 +624,21 @@
                                         </div>
                                     </div>
                                     {% endif %}
+
+                                    <div class="d-flex justify-content-end gap-2 mt-3">
+                                        
+                                        <!-- ✅ NEW: Edit button -->
+                                        <a href="{% url 'products:stock_update' stock.id %}" 
+                                        class="btn btn-sm btn-primary">
+                                            <i class="ti ti-edit"></i> 修改
+                                        </a>
+                                        
+                                        <!-- ✅ NEW: Delete button -->
+                                        <a href="{% url 'products:stock_delete' stock.id %}" 
+                                        class="btn btn-sm btn-danger">
+                                            <i class="ti ti-trash"></i> 刪除
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                             {% empty %}

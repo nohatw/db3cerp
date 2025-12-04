@@ -1,0 +1,299 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+<title>修改庫存 - DB3C ERP</title>
+{% endblock %}
+
+{% block css %}
+<style>
+    .info-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .info-label {
+        font-weight: 600;
+        color: #6c757d;
+        font-size: 0.875rem;
+        margin-bottom: 5px;
+    }
+    
+    .info-value {
+        font-size: 1rem;
+        color: #212529;
+        margin-bottom: 15px;
+    }
+    
+    .product-type-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .badge-esimimg {
+        background: #e7f1ff;
+        color: #0d6efd;
+    }
+    
+    .badge-other {
+        background: #d1e7dd;
+        color: #0f5132;
+    }
+    
+    .qr-preview-large {
+        max-width: 200px;
+        border-radius: 8px;
+        border: 2px solid #dee2e6;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .qr-preview-large:hover {
+        transform: scale(1.05);
+    }
+    
+    .alert-info-custom {
+        background: #cfe2ff;
+        border-color: #9ec5fe;
+        color: #084298;
+        border-radius: 8px;
+        padding: 12px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-xl">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h3 class="card-title mb-0">
+                                <i class="ti ti-edit"></i> 修改庫存
+                            </h3>
+                            <a href="{% url 'products:stock_list' %}" class="btn btn-outline-secondary btn-sm">
+                                <i class="ti ti-arrow-left"></i> 返回庫存列表
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- 產品資訊區（唯讀） -->
+                        <div class="info-section">
+                            <h4 class="mb-3">
+                                <i class="ti ti-package"></i> 產品資訊
+                                <span class="badge bg-secondary ms-2">唯讀，不可修改</span>
+                            </h4>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="info-label">產品名稱</div>
+                                    <div class="info-value">
+                                        {{ stock.product.product.name }}
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="info-label">產品變體</div>
+                                    <div class="info-value">
+                                        {{ stock.product.name }}
+                                        {% if is_esimimg %}
+                                        <span class="product-type-badge badge-esimimg">
+                                            <i class="ti ti-qrcode"></i> 圖庫 eSIM
+                                        </span>
+                                        {% else %}
+                                        <span class="product-type-badge badge-other">
+                                            {{ stock.product.get_product_type_display }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                {% if stock.code %}
+                                <div class="col-md-6">
+                                    <div class="info-label">庫存代碼</div>
+                                    <div class="info-value">
+                                        <code>{{ stock.code }}</code>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="col-md-6">
+                                    <div class="info-label">初始數量</div>
+                                    <div class="info-value">
+                                        {{ stock.initial_quantity }}
+                                    </div>
+                                </div>
+                                
+                                {% if stock.qr_img %}
+                                <div class="col-12">
+                                    <div class="info-label">
+                                        <i class="ti ti-qrcode"></i> QR 圖片
+                                        <span class="badge bg-info ms-2">不可修改</span>
+                                    </div>
+                                    <div class="info-value">
+                                        <img src="{{ stock.qr_img.url }}" 
+                                             alt="QR Code" 
+                                             class="qr-preview-large"
+                                             data-bs-toggle="modal"
+                                             data-bs-target="#qrModal">
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if is_esimimg %}
+                        <div class="alert alert-info-custom mb-4">
+                            <i class="ti ti-info-circle"></i>
+                            <strong>提示：</strong>圖庫 eSIM 類型的庫存，QR 圖片和產品變體建立後無法修改。
+                        </div>
+                        {% endif %}
+
+                        <!-- 錯誤訊息 -->
+                        {% if form.errors %}
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <h4 class="alert-heading">
+                                <i class="ti ti-alert-triangle"></i> 表單驗證錯誤
+                            </h4>
+                            <hr>
+                            <ul class="mb-0">
+                                {% for field in form %}
+                                    {% if field.errors %}
+                                        <li><strong>{{ field.label }}:</strong> {{ field.errors|first }}</li>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if form.non_field_errors %}
+                                    {% for error in form.non_field_errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                {% endif %}
+                            </ul>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endif %}
+
+                        <!-- 修改表單 -->
+                        <form method="post" id="updateForm">
+                            {% csrf_token %}
+                            
+                            <h4 class="mb-3">
+                                <i class="ti ti-forms"></i> 可修改欄位
+                            </h4>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label required">
+                                        {{ form.name.label }}
+                                    </label>
+                                    {{ form.name }}
+                                    {% if form.name.help_text %}
+                                    <div class="form-text">{{ form.name.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label for="{{ form.quantity.id_for_label }}" class="form-label required">
+                                        {{ form.quantity.label }}
+                                    </label>
+                                    {{ form.quantity }}
+                                    {% if form.quantity.help_text %}
+                                    <div class="form-text">{{ form.quantity.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.description.id_for_label }}" class="form-label">
+                                    {{ form.description.label }}
+                                </label>
+                                {{ form.description }}
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="{{ form.expire_date.id_for_label }}" class="form-label">
+                                        {{ form.expire_date.label }}
+                                    </label>
+                                    {{ form.expire_date }}
+                                    {% if form.expire_date.help_text %}
+                                    <div class="form-text">{{ form.expire_date.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="form-label">使用狀態</label>
+                                    <div class="form-check form-switch">
+                                        {{ form.is_used }}
+                                        <label class="form-check-label" for="{{ form.is_used.id_for_label }}">
+                                            {{ form.is_used.label }}
+                                        </label>
+                                    </div>
+                                    {% if form.is_used.help_text %}
+                                    <div class="form-text">{{ form.is_used.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <!-- 操作按鈕 -->
+                            <div class="d-flex justify-content-between align-items-center">
+                                <a href="{% url 'products:stock_list' %}" class="btn btn-secondary">
+                                    <i class="ti ti-x"></i> 取消
+                                </a>
+                                <button type="submit" class="btn btn-primary" id="submitBtn">
+                                    <i class="ti ti-device-floppy"></i> 儲存修改
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- QR Code 模態框 -->
+{% if stock.qr_img %}
+<div class="modal fade" id="qrModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">QR Code 預覽</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img src="{{ stock.qr_img.url }}" alt="QR Code" class="img-fluid">
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scriptcontent %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('updateForm');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    form.addEventListener('submit', function(e) {
+        // 禁用按鈕防止重複提交
+        setTimeout(function() {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>處理中...';
+        }, 50);
+    });
+    
+    console.log('✅ 庫存修改表單載入完成');
+});
+</script>
+{% endblock %}
