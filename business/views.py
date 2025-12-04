@@ -1834,11 +1834,14 @@ class OrderListView(LoginRequiredMixin, ListView):
     訂單列表視圖
     
     權限規則：
-    1. 總公司管理員（超級用戶）：可查看所有訂單
+    1. 總公司管理員（超級用戶）：
+       - 可查看所有訂單（默認）
+       - 可切換查看自己的訂單（view_mode=my_orders）
     2. 代理商：可查看自己和下級分銷商的訂單
     3. 分銷商：只能查看自己的訂單
     
     功能：
+    - 視圖模式切換（僅 HEADQUARTER）：全部訂單/我的訂單
     - 時間篩選：今日/本週/本月/全部訂單（預設今日）
     - 日期篩選：選擇特定日期或日期區間
     - 狀態篩選：PENDING/WAIT/PAID/HOLDING/WAIT_SHIP/SHIPPING/WAIT_PICKUP/DONE/CANCELLED
@@ -1875,10 +1878,19 @@ class OrderListView(LoginRequiredMixin, ListView):
             'order_products__variant__product'
         ).all()
         
-        # 1. 權限過濾
+        # ✅ 1. 權限過濾（新增視圖模式切換）
+        view_mode = self.request.GET.get('view_mode', 'all')  # 默認為 'all'
+        
         if is_headquarter_admin(user):
-            # 總公司管理員：查看所有訂單
-            pass
+            # 總公司管理員：根據 view_mode 決定查看範圍
+            if view_mode == 'my_orders':
+                # 只查看自己的訂單（account = 當前 HEADQUARTER 用戶）
+                queryset = queryset.filter(account=user)
+                logger.info(f'HEADQUARTER 用戶 {user.username} 查看自己的訂單')
+            else:
+                # 默認：查看所有訂單
+                logger.info(f'HEADQUARTER 用戶 {user.username} 查看全部訂單')
+                pass
         elif is_agent(user):
             # 代理商：查看自己和下級分銷商的訂單
             distributor_ids = CustomUser.objects.filter(
@@ -1891,7 +1903,7 @@ class OrderListView(LoginRequiredMixin, ListView):
                 Q(account=user) | Q(account__id__in=distributor_ids)
             )
         else:
-            # 其他用戶（分銷商）：只能查看自己的訂單
+            # 其他用戶（分銷商/PEER/USER）：只能查看自己的訂單
             queryset = queryset.filter(account=user)
         
         # 2. 時間篩選（使用台北時區）
@@ -2006,7 +2018,7 @@ class OrderListView(LoginRequiredMixin, ListView):
                 Q(remark__icontains=search_query)  # 備註
             ).distinct()
         
-        # 6. 排序（使用 OrderStatus 定義的順序）
+        # 7. 排序（使用 OrderStatus 定義的順序）
         from django.db.models import Case, When, IntegerField
         
         queryset = queryset.annotate(
@@ -2039,6 +2051,10 @@ class OrderListView(LoginRequiredMixin, ListView):
         taipei_tz = pytz.timezone('Asia/Taipei')
         today_taipei = timezone.now().astimezone(taipei_tz).date()
         context['today'] = today_taipei
+        
+        # ✅ 傳遞視圖模式（僅 HEADQUARTER 可用）
+        context['view_mode'] = self.request.GET.get('view_mode', 'all')
+        context['can_switch_view'] = is_headquarter_admin(user)  # 只有總公司可以切換
         
         # 1. 傳遞篩選選項
         context['order_statuses'] = OrderStatus.choices

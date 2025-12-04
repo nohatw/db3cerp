@@ -167,11 +167,51 @@
             </div>
         </div>
 
+        <!-- 視圖模式切換（僅 HEADQUARTER） -->
+        {% if can_switch_view %}
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <h3 class="mb-0">
+                                    {% if view_mode == 'my_orders' %}
+                                        <i class="ti ti-user text-primary"></i> 我的訂單
+                                    {% else %}
+                                        <i class="ti ti-world text-primary"></i> 全部訂單
+                                    {% endif %}
+                                </h3>
+                                <p class="text-muted mb-0">
+                                    {% if view_mode == 'my_orders' %}
+                                        僅顯示您帳號關聯的訂單
+                                    {% else %}
+                                        顯示系統所有訂單
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'business:order_list' %}?view_mode=all{% if selected_time_range %}&time_range={{ selected_time_range }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" 
+                                class="btn {% if view_mode == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                    <i class="ti ti-world"></i> 全部訂單
+                                </a>
+                                <a href="{% url 'business:order_list' %}?view_mode=my_orders{% if selected_time_range %}&time_range={{ selected_time_range }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" 
+                                class="btn {% if view_mode == 'my_orders' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                    <i class="ti ti-user"></i> 我的訂單
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- 統計卡片 -->
         <div class="row">
             <!-- ✅ 訂單總數（保留當前時間範圍，清除狀態篩選） -->
             <div class="col-md-3">
-                <a href="{% url 'business:order_list' %}?{% if selected_time_range %}time_range={{ selected_time_range }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="">
+                <a href="{% url 'business:order_list' %}?{% if view_mode %}view_mode={{ view_mode }}&{% endif %}{% if selected_time_range %}time_range={{ selected_time_range }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="">
                     <div class="stats-card {% if not selected_status %}active{% endif %}">
                         <div class="text-muted small">訂單總數</div>
                         <h3>{{ total_orders }}</h3>
@@ -181,7 +221,7 @@
             
             <!-- ✅ 待處理（保留當前時間範圍 + 狀態=PENDING） -->
             <div class="col-md-3">
-                <a href="{% url 'business:order_list' %}?status=PENDING{% if selected_time_range %}&time_range={{ selected_time_range }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="">
+                <a href="{% url 'business:order_list' %}?{% if view_mode %}view_mode={{ view_mode }}&{% endif %}status=PENDING{% if selected_time_range %}&time_range={{ selected_time_range }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="">
                     <div class="stats-card {% if selected_status == 'PENDING' %}active{% endif %}">
                         <div class="text-muted small">待處理</div>
                         <h3 class="text-warning">{{ pending_count }}</h3>
@@ -213,6 +253,11 @@
         <!-- 篩選區域 -->
         <div class="filter-section">
             <form method="get" id="filterForm">
+                <!-- 保留視圖模式 -->
+                {% if view_mode %}
+                <input type="hidden" name="view_mode" value="{{ view_mode }}">
+                {% endif %}
+                
                 <!-- 日期篩選區域 -->
                 <div class="date-filter-section mb-3">
                     <div class="row g-3">
