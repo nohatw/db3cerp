@@ -28,7 +28,7 @@ urlpatterns = [
     # 先註冊自訂的 accounts URLs（更具體的路徑優先）
     path('accounts/', include('accounts.urls')),  # ← 你的自訂路由
     
-    # ✅ allauth 使用不同的路徑前綴
+    # allauth 使用不同的路徑前綴
     path('auth/', include('allauth.urls')),  # ← 改成 /auth/ 避免衝突
     
     path('', include('products.urls')),
