@@ -267,6 +267,10 @@ class CatalogueDetailView(DetailView):
 class CatalogueViewForAgents(LoginRequiredMixin, ListView):
     """
     代理商/分銷商批量選購介面
+    
+    權限規則：
+    - HEADQUARTER：可查看所有產品類型
+    - 其他角色：只能查看 ESIM, ESIMIMG, RECHARGEABLE（不含 PHYSICAL）
     """
     model = Product
     template_name = 'products/catalogue_agents.html'
@@ -282,6 +286,9 @@ class CatalogueViewForAgents(LoginRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
     
     def get_queryset(self):
+        user = self.request.user
+        
+        # 基礎查詢（只包含上架的產品和變體）
         queryset = Product.objects.filter(
             status=ProductStatus.ACTIVE
         ).select_related('category').prefetch_related(
@@ -293,12 +300,42 @@ class CatalogueViewForAgents(LoginRequiredMixin, ListView):
             )
         )
         
-        queryset = queryset.annotate(
-            active_variants_count=Count(
-                'variants',
-                filter=Q(variants__status=VariantStatus.ACTIVE)
-            )
-        ).filter(active_variants_count__gt=0)
+        # 根據用戶角色過濾產品類型
+        if not is_headquarter_admin(user):
+            # 非總公司：只顯示 ESIM, ESIMIMG, RECHARGEABLE
+            allowed_types = [
+                ProductType.ESIM,
+                ProductType.ESIMIMG,
+                ProductType.RECHARGEABLE
+            ]
+            queryset = queryset.filter(
+                variants__product_type__in=allowed_types,
+                variants__status=VariantStatus.ACTIVE
+            ).distinct()
+        # HEADQUARTER 用戶不需要過濾，可以看到所有類型
+        
+        # 統計有效變體數量（考慮角色限制）
+        if not is_headquarter_admin(user):
+            queryset = queryset.annotate(
+                active_variants_count=Count(
+                    'variants',
+                    filter=Q(
+                        variants__status=VariantStatus.ACTIVE,
+                        variants__product_type__in=[
+                            ProductType.ESIM,
+                            ProductType.ESIMIMG,
+                            ProductType.RECHARGEABLE
+                        ]
+                    )
+                )
+            ).filter(active_variants_count__gt=0)
+        else:
+            queryset = queryset.annotate(
+                active_variants_count=Count(
+                    'variants',
+                    filter=Q(variants__status=VariantStatus.ACTIVE)
+                )
+            ).filter(active_variants_count__gt=0)
         
         # 分類篩選
         category_id = self.request.GET.get('category')
@@ -311,10 +348,15 @@ class CatalogueViewForAgents(LoginRequiredMixin, ListView):
         # 產品類型篩選
         product_type = self.request.GET.get('type')
         if product_type and product_type in dict(ProductType.choices):
-            queryset = queryset.filter(
-                variants__product_type=product_type,
-                variants__status=VariantStatus.ACTIVE
-            ).distinct()
+            # 檢查用戶是否有權限查看該類型
+            if not is_headquarter_admin(user) and product_type == ProductType.PHYSICAL:
+                # 非總公司用戶嘗試查看 PHYSICAL 類型，忽略此篩選
+                pass
+            else:
+                queryset = queryset.filter(
+                    variants__product_type=product_type,
+                    variants__status=VariantStatus.ACTIVE
+                ).distinct()
         
         # 搜尋功能
         search_query = self.request.GET.get('q')
@@ -344,14 +386,38 @@ class CatalogueViewForAgents(LoginRequiredMixin, ListView):
         context['is_peer'] = is_peer(user)
         context['is_superuser'] = user.is_superuser
         
-        # 傳遞分類列表
-        context['categories'] = Category.objects.filter(
-            products__status=ProductStatus.ACTIVE,
-            products__variants__status=VariantStatus.ACTIVE
-        ).distinct().order_by('sort_order')
+        # 傳遞分類列表（根據角色限制）
+        if is_headquarter_admin(user):
+            # 總公司：顯示所有分類
+            categories_queryset = Category.objects.filter(
+                products__status=ProductStatus.ACTIVE,
+                products__variants__status=VariantStatus.ACTIVE
+            )
+        else:
+            # 其他角色：只顯示有 ESIM/ESIMIMG/RECHARGEABLE 產品的分類
+            categories_queryset = Category.objects.filter(
+                products__status=ProductStatus.ACTIVE,
+                products__variants__status=VariantStatus.ACTIVE,
+                products__variants__product_type__in=[
+                    ProductType.ESIM,
+                    ProductType.ESIMIMG,
+                    ProductType.RECHARGEABLE
+                ]
+            )
         
-        # 傳遞產品類型選項
-        context['product_types'] = ProductType.choices
+        context['categories'] = categories_queryset.distinct().order_by('sort_order')
+        
+        # ✅ 根據角色過濾產品類型選項
+        if is_headquarter_admin(user):
+            # 總公司：顯示所有類型
+            context['product_types'] = ProductType.choices
+        else:
+            # 其他角色：只顯示 ESIM, ESIMIMG, RECHARGEABLE
+            context['product_types'] = [
+                (ProductType.ESIM, 'eSIM'),
+                (ProductType.ESIMIMG, '圖庫eSIM'),
+                (ProductType.RECHARGEABLE, '充值卡'),
+            ]
         
         # 傳遞當前篩選條件
         context['selected_category'] = self.request.GET.get('category', '')
@@ -374,7 +440,18 @@ class CatalogueViewForAgents(LoginRequiredMixin, ListView):
 
         # 使用 products.utils 的統一價格獲取函數
         for product in context['products']:
-            active_variants = product.variants.all()
+            # 過濾變體：根據用戶角色
+            if is_headquarter_admin(user):
+                active_variants = product.variants.all()
+            else:
+                # 只顯示允許的產品類型
+                active_variants = product.variants.filter(
+                    product_type__in=[
+                        ProductType.ESIM,
+                        ProductType.ESIMIMG,
+                        ProductType.RECHARGEABLE
+                    ]
+                )
             
             for variant in active_variants:
                 # 使用新的統一價格函數
