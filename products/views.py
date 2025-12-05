@@ -288,44 +288,58 @@ class CatalogueViewForAgents(LoginRequiredMixin, ListView):
     def get_queryset(self):
         user = self.request.user
         
-        # 基礎查詢（只包含上架的產品和變體）
-        queryset = Product.objects.filter(
-            status=ProductStatus.ACTIVE
-        ).select_related('category').prefetch_related(
-            Prefetch(
-                'variants',
-                queryset=Variant.objects.filter(
-                    status=VariantStatus.ACTIVE
-                ).order_by('sort_order')
-            )
-        )
-        
-        # 根據用戶角色過濾產品類型
-        if not is_headquarter_admin(user):
-            # 非總公司：只顯示 ESIM, ESIMIMG, RECHARGEABLE
+        # ✅ 根據角色決定允許的產品類型
+        if is_headquarter_admin(user):
+            allowed_types = None  # 總公司可以看所有類型
+        else:
             allowed_types = [
                 ProductType.ESIM,
                 ProductType.ESIMIMG,
                 ProductType.RECHARGEABLE
             ]
+        
+        # 基礎查詢（只包含上架的產品和變體）
+        if allowed_types:
+            # ✅ 非總公司：只預載符合類型的變體
+            queryset = Product.objects.filter(
+                status=ProductStatus.ACTIVE
+            ).select_related('category').prefetch_related(
+                Prefetch(
+                    'variants',
+                    queryset=Variant.objects.filter(
+                        status=VariantStatus.ACTIVE,
+                        product_type__in=allowed_types  # ✅ 關鍵：在這裡就過濾
+                    ).order_by('sort_order')
+                )
+            )
+        else:
+            # ✅ 總公司：預載所有上架變體
+            queryset = Product.objects.filter(
+                status=ProductStatus.ACTIVE
+            ).select_related('category').prefetch_related(
+                Prefetch(
+                    'variants',
+                    queryset=Variant.objects.filter(
+                        status=VariantStatus.ACTIVE
+                    ).order_by('sort_order')
+                )
+            )
+        
+        # 根據用戶角色過濾產品（確保產品至少有一個符合條件的變體）
+        if allowed_types:
             queryset = queryset.filter(
                 variants__product_type__in=allowed_types,
                 variants__status=VariantStatus.ACTIVE
             ).distinct()
-        # HEADQUARTER 用戶不需要過濾，可以看到所有類型
         
         # 統計有效變體數量（考慮角色限制）
-        if not is_headquarter_admin(user):
+        if allowed_types:
             queryset = queryset.annotate(
                 active_variants_count=Count(
                     'variants',
                     filter=Q(
                         variants__status=VariantStatus.ACTIVE,
-                        variants__product_type__in=[
-                            ProductType.ESIM,
-                            ProductType.ESIMIMG,
-                            ProductType.RECHARGEABLE
-                        ]
+                        variants__product_type__in=allowed_types
                     )
                 )
             ).filter(active_variants_count__gt=0)
@@ -349,8 +363,8 @@ class CatalogueViewForAgents(LoginRequiredMixin, ListView):
         product_type = self.request.GET.get('type')
         if product_type and product_type in dict(ProductType.choices):
             # 檢查用戶是否有權限查看該類型
-            if not is_headquarter_admin(user) and product_type == ProductType.PHYSICAL:
-                # 非總公司用戶嘗試查看 PHYSICAL 類型，忽略此篩選
+            if allowed_types and product_type not in allowed_types:
+                # 非總公司用戶嘗試查看不允許的類型，忽略此篩選
                 pass
             else:
                 queryset = queryset.filter(
@@ -386,38 +400,44 @@ class CatalogueViewForAgents(LoginRequiredMixin, ListView):
         context['is_peer'] = is_peer(user)
         context['is_superuser'] = user.is_superuser
         
-        # 傳遞分類列表（根據角色限制）
+        # ✅ 根據角色決定允許的產品類型
         if is_headquarter_admin(user):
+            allowed_types = None  # 總公司可以看所有類型
+        else:
+            allowed_types = [
+                ProductType.ESIM,
+                ProductType.ESIMIMG,
+                ProductType.RECHARGEABLE
+            ]
+        
+        # 傳遞分類列表（根據角色限制）
+        if allowed_types:
+            # 其他角色：只顯示有 ESIM/ESIMIMG/RECHARGEABLE 產品的分類
+            categories_queryset = Category.objects.filter(
+                products__status=ProductStatus.ACTIVE,
+                products__variants__status=VariantStatus.ACTIVE,
+                products__variants__product_type__in=allowed_types
+            )
+        else:
             # 總公司：顯示所有分類
             categories_queryset = Category.objects.filter(
                 products__status=ProductStatus.ACTIVE,
                 products__variants__status=VariantStatus.ACTIVE
             )
-        else:
-            # 其他角色：只顯示有 ESIM/ESIMIMG/RECHARGEABLE 產品的分類
-            categories_queryset = Category.objects.filter(
-                products__status=ProductStatus.ACTIVE,
-                products__variants__status=VariantStatus.ACTIVE,
-                products__variants__product_type__in=[
-                    ProductType.ESIM,
-                    ProductType.ESIMIMG,
-                    ProductType.RECHARGEABLE
-                ]
-            )
         
         context['categories'] = categories_queryset.distinct().order_by('sort_order')
         
         # ✅ 根據角色過濾產品類型選項
-        if is_headquarter_admin(user):
-            # 總公司：顯示所有類型
-            context['product_types'] = ProductType.choices
-        else:
+        if allowed_types:
             # 其他角色：只顯示 ESIM, ESIMIMG, RECHARGEABLE
             context['product_types'] = [
                 (ProductType.ESIM, 'eSIM'),
                 (ProductType.ESIMIMG, '圖庫eSIM'),
                 (ProductType.RECHARGEABLE, '充值卡'),
             ]
+        else:
+            # 總公司：顯示所有類型
+            context['product_types'] = ProductType.choices
         
         # 傳遞當前篩選條件
         context['selected_category'] = self.request.GET.get('category', '')
@@ -438,23 +458,16 @@ class CatalogueViewForAgents(LoginRequiredMixin, ListView):
             cart = {}
             logger.warning('購物車 JSON 解析失敗')
 
-        # 使用 products.utils 的統一價格獲取函數
+        # ✅ 使用 products.utils 的統一價格獲取函數
         for product in context['products']:
-            # 過濾變體：根據用戶角色
-            if is_headquarter_admin(user):
-                active_variants = product.variants.all()
-            else:
-                # 只顯示允許的產品類型
-                active_variants = product.variants.filter(
-                    product_type__in=[
-                        ProductType.ESIM,
-                        ProductType.ESIMIMG,
-                        ProductType.RECHARGEABLE
-                    ]
-                )
+            # ✅ 重要：直接使用已經過濾好的 variants（從 Prefetch 中獲取）
+            # 這樣可以避免重複查詢，並且保證獲取的是符合角色權限的變體
+            active_variants = product.variants.all()
+            
+            logger.info(f'產品 {product.id} ({product.name}) 有 {active_variants.count()} 個變體')
             
             for variant in active_variants:
-                # 使用新的統一價格函數
+                # ✅ 使用統一價格函數獲取正確的價格
                 display_price, original_price, has_sale = get_variant_price_for_user(variant, user)
                 variant.display_price = display_price
                 variant.display_original_price = original_price
@@ -471,7 +484,14 @@ class CatalogueViewForAgents(LoginRequiredMixin, ListView):
                 variant.stock_quantity = stock_total
                 variant.has_stock = stock_total > 0
                 
-                logger.info(f'變體 {variant.id} [{user.role}] - 顯示價格：{display_price}, 原價：{original_price}, 有特價：{has_sale}, 庫存：{stock_total}')
+                logger.info(
+                    f'變體 {variant.id} ({variant.name}) [{user.role}] - '
+                    f'類型：{variant.product_type}, '
+                    f'顯示價格：{display_price}, '
+                    f'原價：{original_price}, '
+                    f'有特價：{has_sale}, '
+                    f'庫存：{stock_total}'
+                )
                 
                 # 添加購物車數量
                 variant_id_str = str(variant.id)
