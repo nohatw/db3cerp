@@ -36,12 +36,12 @@ class ProductAdmin(admin.ModelAdmin):
 class VariantAdmin(admin.ModelAdmin):
     list_display = ('name', 'id', 'status', 'product', 'product_code', 'price', 'price_sales')
     search_fields = ('name', 'description', 'product', 'product_code')
-    list_filter = ('product', 'product_type', 'status')
+    list_filter = ('product', 'product_type', 'supplier', 'status')
     ordering = ('id',)
     readonly_fields = ('created_at', 'updated_at')
 
     fieldsets = (
-        ('Variant Info', {'fields': ('name', 'description', 'status', 'product_type', 'sku', 'product', 'product_code', 'days', 'data_amount', 'price', 'price_sales', 'price_agent', 'price_sales_agent', 'sort_order', 'created_at', 'updated_at')}),
+        ('Variant Info', {'fields': ('name', 'description', 'status', 'product_type', 'sku', 'product', 'supplier', 'product_code', 'days', 'data_amount', 'price', 'price_sales', 'price_agent', 'price_sales_agent', 'sort_order', 'created_at', 'updated_at')}),
     )
 
 class AgentDistributorPricingAdmin(admin.ModelAdmin):

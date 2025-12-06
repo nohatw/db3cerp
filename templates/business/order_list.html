@@ -445,17 +445,17 @@
                     <a href="{% url 'business:order_detail' order.id %}" class="btn btn-primary btn-sm">
                         查看詳情
                     </a>
-                    
-
-                    <!-- 新增：下載收據 PDF 按鈕 -->
-                    {% if order.receipts.exists %}
-                        {% with receipt=order.receipts.first %}
-                        <a href="{% url 'business:receipt_detail' pk=receipt.id %}" 
-                        class="btn btn-outline-info btn-sm" 
-                        title="查看收據 {{ receipt.receipt_number }}">
-                            <i class="fa fa-receipt"></i> 查看收據
-                        </a>
-                        {% endwith %}
+                    <!-- 下載收據 PDF 按鈕 -->
+                    {% if is_headquarter_admin %}
+                        {% if order.receipts.exists %}
+                            {% with receipt=order.receipts.first %}
+                            <a href="{% url 'business:receipt_detail' pk=receipt.id %}" 
+                            class="btn btn-outline-info btn-sm" 
+                            title="查看收據 {{ receipt.receipt_number }}">
+                                <i class="fa fa-receipt"></i> 查看收據
+                            </a>
+                            {% endwith %}
+                        {% endif %}
                     {% endif %}
                 </div>
 

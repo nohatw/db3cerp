@@ -46,13 +46,12 @@ class PaymentType(models.TextChoices):
 # 訂單來源
 class OrderSource(models.TextChoices):
     ERP = "ERP", "ERP系統"
-    SHOPEE = "SHOPEE", "蝦皮"
+    SHOPEE = "SHOPEE", "蝦皮商城"
+    COUPANG = "COUPANG", "酷澎"
     WEBSITE = "WEBSITE", "官網"
     LINE = "LINE", "LINE"
-    FACEBOOK = "FACEBOOK", "臉書"
     HANDOVER = "HANDOVER", "面交"
     PEER = "PEER", "同業"
-    GIFT = "GIFT", "禮物"
     OTHER = "OTHER", "其他"
 
 # 訂單產品狀態

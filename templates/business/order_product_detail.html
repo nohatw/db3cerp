@@ -204,7 +204,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <h3>產品資訊</h3>
                             <span class="status-badge status-{{ order_product.status }}">
-                                {{ order_product.get_status_display }}
+                                {{ order_product..get_status_display }}
                             </span>
                         </div>
                     </div>
@@ -214,11 +214,23 @@
                         <div class="info-value">
                             <strong>{{ order_product.variant.name|default:"已下架商品" }}</strong>
                         </div>
+
+                        <div class="info-label">SKU</div>
+                        <div class="info-value">
+                            <code>{{ order_product.variant.sku }}</code>
+                        </div>
                         
+                        {% if is_headquarter_admin %}
                         <div class="info-label">產品代碼</div>
                         <div class="info-value">
-                            <code>{{ order_product.product_code }}</code>
+                            <code>{{ order_product.product_code }} </code><span class="badge-used">總公司顯示</span>
                         </div>
+
+                        <div class="info-label">供應商代碼</div>
+                        <div class="info-value">
+                            <code>{{ order_product.product_code }} </code><span class="badge-used">總公司顯示</span>
+                        </div>
+                        {% endif %}
                         
                         {% if order_product.variant %}
                         <div class="info-label">產品類型</div>

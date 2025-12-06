@@ -824,7 +824,7 @@ def checkout_view(request):
                 product__status='ACTIVE'
             )
             
-            # ✅ 直接使用購物車中儲存的價格（已經是總公司管理員修改過的價格）
+            # 直接使用購物車中儲存的價格（已經是總公司管理員修改過的價格）
             unit_price = Decimal(str(item_data['unit_price']))
             quantity = item_data['quantity']
             subtotal = quantity * unit_price
@@ -892,7 +892,19 @@ def checkout_view(request):
     
     logger.info(f'結帳統計：商品總數 {cart_count}，總金額 ${cart_total}，餘額 ${user_balance}，餘額{"足夠" if balance_sufficient else "不足"}')
     
-    # 7. 準備 context
+    # 7. 根據用戶角色決定可用的支付類型
+    if is_headquarter_admin(user):
+        # 總公司：可使用所有支付類型
+        available_payment_types = PaymentType.choices
+        logger.info(f'HEADQUARTER 用戶 {user.username}，可使用所有支付類型')
+    else:
+        # 其他角色：只能使用儲值支付
+        available_payment_types = [
+            (PaymentType.TOPUP, '儲值')
+        ]
+        logger.info(f'非 HEADQUARTER 用戶 {user.username}（{user.get_role_display()}），只能使用儲值支付')
+    
+    # 8. 準備 context
     context = {
         'cart_items': cart_items,
         'cart_count': cart_count,
@@ -904,8 +916,9 @@ def checkout_view(request):
         'order_for_account': order_for_account,
         'order_for_account_name': request.session.get('order_for_account_name'),
         'order_for_account_role': request.session.get('order_for_account_role'),
-        'payment_types': PaymentType.choices,
+        'payment_types': available_payment_types,
         'order_sources': OrderSource.choices,
+        'is_headquarter': is_headquarter_admin(user), 
     }
     
     # 如果有移除無效商品，需要更新 cookie

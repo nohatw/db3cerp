@@ -7,7 +7,7 @@ class ProductStatus(models.TextChoices):
     INACTIVE = "INACTIVE", "下架"
     ARCHIVED = "ARCHIVED", "封存"
 
-# 產品變體狀態
+# 產品方案狀態
 class VariantStatus(models.TextChoices):
     ACTIVE = "ACTIVE", "上架"
     INACTIVE = "INACTIVE", "下架"

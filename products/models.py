@@ -103,6 +103,14 @@ class Variant(models.Model):
         related_name='variants', 
         verbose_name="產品"
     )
+    supplier = models.ForeignKey(
+        'Supplier', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='variants', 
+        verbose_name="供應商"
+    )
     product_code = models.CharField(max_length=255, blank=True) # 產品代碼
     sku = models.CharField(max_length=255, blank=True, verbose_name="SKU")
     days = models.CharField(max_length=100, verbose_name="方案天數")  # e.g., '1-3 天', '3-5 天', '5-7 天', '7-10 天', '10-14 天', '14-20 天', '20-30 天', '30-60 天', '60-90 天', '90-120 天'

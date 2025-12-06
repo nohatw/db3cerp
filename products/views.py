@@ -1405,12 +1405,16 @@ class ProductDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
-# 產品變體列表
+# 產品方案列表
 class VariantListView(LoginRequiredMixin, ListView):
     """
     產品變體列表視圖（後台管理）
     
     權限：總公司管理員和代理商可以查看
+    
+    權限規則：
+    - HEADQUARTER：可查看所有產品類型（ESIM, ESIMIMG, RECHARGEABLE, PHYSICAL）和所有狀態（ACTIVE, INACTIVE, ARCHIVED）
+    - 其他角色：只能查看 ESIM, ESIMIMG, RECHARGEABLE（不含 PHYSICAL）且只能查看 ACTIVE 狀態
     
     功能：
     1. 顯示所有變體（包含上架/下架）
@@ -1444,10 +1448,34 @@ class VariantListView(LoginRequiredMixin, ListView):
         """
         from django.db.models import Sum
         
+        user = self.request.user
+        
+        # 根據角色決定允許的產品類型
+        if is_headquarter_admin(user):
+            allowed_types = None  # 總公司可以看所有類型
+            allowed_statuses = None  # 總公司可以看所有狀態
+        else:
+            allowed_types = [
+                ProductType.ESIM,
+                ProductType.ESIMIMG,
+                ProductType.RECHARGEABLE
+            ]
+            allowed_statuses = [VariantStatus.ACTIVE]  # 其他角色只能看 ACTIVE
+        
+        # 基礎查詢
         queryset = Variant.objects.select_related(
             'product',
-            'product__category'
-        ).all()
+            'product__category',
+            'supplier'  # 預載供應商資訊
+        )
+        
+        # 根據角色過濾產品類型
+        if allowed_types:
+            queryset = queryset.filter(product_type__in=allowed_types)
+        
+        # 根據角色過濾狀態
+        if allowed_statuses:
+            queryset = queryset.filter(status__in=allowed_statuses)
         
         # 搜尋功能
         search_query = self.request.GET.get('q')
@@ -1458,7 +1486,8 @@ class VariantListView(LoginRequiredMixin, ListView):
                 Q(sku__icontains=search_query) |
                 Q(product__name__icontains=search_query) |
                 Q(days__icontains=search_query) |
-                Q(data_amount__icontains=search_query)
+                Q(data_amount__icontains=search_query) |
+                Q(supplier__name__icontains=search_query)  # ✅ 支援搜尋供應商
             )
         
         # 產品篩選
@@ -1472,12 +1501,22 @@ class VariantListView(LoginRequiredMixin, ListView):
         # 產品類型篩選
         product_type = self.request.GET.get('type')
         if product_type and product_type in dict(ProductType.choices):
-            queryset = queryset.filter(product_type=product_type)
+            # 檢查用戶是否有權限查看該類型
+            if allowed_types and product_type not in allowed_types:
+                # 非總公司用戶嘗試查看不允許的類型，忽略此篩選
+                pass
+            else:
+                queryset = queryset.filter(product_type=product_type)
         
         # 狀態篩選
         status = self.request.GET.get('status')
         if status and status in dict(VariantStatus.choices):
-            queryset = queryset.filter(status=status)
+            # 檢查用戶是否有權限查看該狀態
+            if allowed_statuses and status not in allowed_statuses:
+                # 非總公司用戶嘗試查看不允許的狀態，忽略此篩選
+                pass
+            else:
+                queryset = queryset.filter(status=status)
         
         # 排序
         return queryset.order_by('product__sort_order', 'sort_order', 'id')
@@ -1490,6 +1529,18 @@ class VariantListView(LoginRequiredMixin, ListView):
         
         context = super().get_context_data(**kwargs)
         user = self.request.user
+        
+        # 根據角色決定允許的產品類型和狀態
+        if is_headquarter_admin(user):
+            allowed_types = None  # 總公司可以看所有類型
+            allowed_statuses = None  # 總公司可以看所有狀態
+        else:
+            allowed_types = [
+                ProductType.ESIM,
+                ProductType.ESIMIMG,
+                ProductType.RECHARGEABLE
+            ]
+            allowed_statuses = [VariantStatus.ACTIVE]  # ✅ 其他角色只能看 ACTIVE
         
         # 為每個變體計算庫存和添加價格資訊
         for variant in context['variants']:
@@ -1514,15 +1565,39 @@ class VariantListView(LoginRequiredMixin, ListView):
                     variant.agent_price_sales_distr = None
                     variant.has_agent_pricing = False
         
-        # 統計資料
-        all_variants = Variant.objects.all()
+        # 統計資料（根據角色限制）
+        if allowed_types and allowed_statuses:
+            # 其他角色：只統計允許的類型和狀態
+            all_variants = Variant.objects.filter(
+                product_type__in=allowed_types,
+                status__in=allowed_statuses
+            )
+        elif allowed_types:
+            # 只限制類型
+            all_variants = Variant.objects.filter(product_type__in=allowed_types)
+        elif allowed_statuses:
+            # 只限制狀態
+            all_variants = Variant.objects.filter(status__in=allowed_statuses)
+        else:
+            # 總公司：統計所有類型和狀態
+            all_variants = Variant.objects.all()
+        
         context['total_variants'] = all_variants.count()
         context['active_variants'] = all_variants.filter(
             status=VariantStatus.ACTIVE
         ).count()
-        context['inactive_variants'] = all_variants.filter(
-            status=VariantStatus.INACTIVE
-        ).count()
+        
+        # INACTIVE 和 ARCHIVED 只有總公司能看到
+        if is_headquarter_admin(user):
+            context['inactive_variants'] = all_variants.filter(
+                status=VariantStatus.INACTIVE
+            ).count()
+            context['archived_variants'] = all_variants.filter(
+                status=VariantStatus.ARCHIVED
+            ).count()
+        else:
+            context['inactive_variants'] = 0
+            context['archived_variants'] = 0
         
         # 按產品類型統計
         context['esim_count'] = all_variants.filter(
@@ -1534,18 +1609,47 @@ class VariantListView(LoginRequiredMixin, ListView):
         context['rechargeable_count'] = all_variants.filter(
             product_type=ProductType.RECHARGEABLE
         ).count()
-        context['physical_count'] = all_variants.filter(
-            product_type=ProductType.PHYSICAL
-        ).count()
         
-        # 傳遞產品列表
-        context['products'] = Product.objects.all().order_by('sort_order', 'name')
+        # PHYSICAL 只有總公司能看到
+        if is_headquarter_admin(user):
+            context['physical_count'] = all_variants.filter(
+                product_type=ProductType.PHYSICAL
+            ).count()
+        else:
+            context['physical_count'] = 0
         
-        # 傳遞產品類型選項
-        context['product_types'] = ProductType.choices
+        # 傳遞產品列表（根據角色限制）
+        if allowed_types:
+            # 其他角色：只顯示包含允許類型方案的產品
+            context['products'] = Product.objects.filter(
+                variants__product_type__in=allowed_types,
+                variants__status__in=allowed_statuses  # 也要限制狀態
+            ).distinct().order_by('sort_order', 'name')
+        else:
+            # 總公司：顯示所有產品
+            context['products'] = Product.objects.all().order_by('sort_order', 'name')
         
-        # 傳遞狀態選項
-        context['variant_statuses'] = VariantStatus.choices
+        # 根據角色過濾產品類型選項
+        if allowed_types:
+            # 其他角色：只顯示 ESIM, ESIMIMG, RECHARGEABLE
+            context['product_types'] = [
+                (ProductType.ESIM, 'eSIM'),
+                (ProductType.ESIMIMG, '圖庫eSIM'),
+                (ProductType.RECHARGEABLE, '充值卡'),
+            ]
+        else:
+            # 總公司：顯示所有類型
+            context['product_types'] = ProductType.choices
+        
+        # 根據角色過濾狀態選項
+        if allowed_statuses:
+            # 其他角色：只顯示 ACTIVE
+            context['variant_statuses'] = [
+                (VariantStatus.ACTIVE, '上架'),
+            ]
+        else:
+            # 總公司：顯示所有狀態
+            context['variant_statuses'] = VariantStatus.choices
         
         # 保持搜尋參數
         context['search_query'] = self.request.GET.get('q', '')
@@ -1559,9 +1663,16 @@ class VariantListView(LoginRequiredMixin, ListView):
         
         # 如果是代理商，統計已設定經銷價格的變體數量
         if is_agent(user):
-            context['agent_priced_variants'] = AgentDistributorPricing.objects.filter(
-                agent=user
-            ).count()
+            if allowed_types and allowed_statuses:
+                context['agent_priced_variants'] = AgentDistributorPricing.objects.filter(
+                    agent=user,
+                    variant__product_type__in=allowed_types,
+                    variant__status__in=allowed_statuses
+                ).count()
+            else:
+                context['agent_priced_variants'] = AgentDistributorPricing.objects.filter(
+                    agent=user
+                ).count()
         
         return context
 
@@ -1578,14 +1689,15 @@ class VariantCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     2. 支援從產品詳情頁跳轉並自動選擇產品
     3. 完整的價格設定
     4. SKU 和產品代碼管理
+    5. 供應商選擇
     """
     model = Variant
     template_name = 'products/variant_form.html'
     fields = [
-        'product', 'name', 'description', 'product_type', 'status',
+        'product', 'name', 'description', 'product_type', 'status', 'supplier',  # ✅ supplier 已在這裡
         'product_code', 'sku', 'days', 'data_amount',
         'price', 'price_sales', 'price_agent', 'price_sales_agent',
-        'price_peer', 'price_sales_peer',  # 新增同業價格欄位
+        'price_peer', 'price_sales_peer',
         'sort_order'
     ]
     
@@ -1619,6 +1731,9 @@ class VariantCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         # 傳遞產品列表
         context['products'] = Product.objects.all().order_by('sort_order', 'name')
         
+        # 傳遞供應商列表
+        context['suppliers'] = Supplier.objects.all().order_by('sort_order', 'name')
+        
         # 傳遞產品類型選項
         context['product_types'] = ProductType.choices
         
@@ -1632,6 +1747,9 @@ class VariantCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 context['selected_product'] = Product.objects.get(pk=product_id)
             except Product.DoesNotExist:
                 pass
+        
+        # 傳遞是否為總公司管理員
+        context['is_headquarter'] = is_headquarter_admin(self.request.user)
         
         return context
     
@@ -1652,14 +1770,14 @@ class VariantUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     權限：總公司管理員或代理商可以編輯
     
     功能：
-    1. 總公司管理員：可以編輯所有欄位
+    1. 總公司管理員：可以編輯所有欄位（包含供應商）
     2. 代理商：只能編輯自己的經銷價格（price_distr, price_sales_distr）
     3. 成功後返回產品詳情頁
     """
     model = Variant
     template_name = 'products/variant_form.html'
     fields = [
-        'product', 'name', 'description', 'product_type', 'status',
+        'product', 'name', 'description', 'product_type', 'status', 'supplier',  # ✅ supplier 已在這裡
         'product_code', 'sku', 'days', 'data_amount',
         'price', 'price_sales', 'price_agent', 'price_sales_agent',
         'price_peer', 'price_sales_peer',
@@ -1684,6 +1802,9 @@ class VariantUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         # 傳遞產品列表
         context['products'] = Product.objects.all().order_by('sort_order', 'name')
         
+        # 傳遞供應商列表
+        context['suppliers'] = Supplier.objects.all().order_by('sort_order', 'name')
+        
         # 傳遞產品類型選項
         context['product_types'] = ProductType.choices
         
@@ -1692,6 +1813,9 @@ class VariantUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         
         # 傳遞當前變體所屬的產品
         context['selected_product'] = self.object.product
+        
+        # 傳遞是否為總公司管理員
+        context['is_headquarter'] = is_headquarter_admin(self.request.user)
         
         # 如果是代理商，獲取或創建其經銷價格記錄
         if is_agent(self.request.user):
@@ -1741,7 +1865,7 @@ class VariantUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
                 action = '建立' if created else '更新'
                 messages.success(
                     request,
-                    f'✅ 經銷價格{action}成功！價格：NT$ {agent_pricing.price_distr:,.0f}'
+                    f'經銷價格{action}成功！價格：NT$ {agent_pricing.price_distr:,.0f}'
                 )
                 return redirect(self.get_success_url())
             else:
@@ -1758,7 +1882,7 @@ class VariantUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         # 只有總公司管理員才會執行到這裡
         messages.success(
             self.request,
-            f'✅ 變體「{form.instance.name}」更新成功！'
+            f' 變體「{form.instance.name}」更新成功！'
         )
         return super().form_valid(form)
 

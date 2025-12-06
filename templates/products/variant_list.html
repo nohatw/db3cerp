@@ -2,7 +2,7 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}<title>變體列表 - DB3C ERP</title>{% endblock %}
+{% block title %}<title>方案列表 - DB3C ERP</title>{% endblock %}
 
 {% block css %}
 <style>
@@ -137,10 +137,10 @@
                 <div class="col">
                     <h2 class="page-title">
                         <i class="ti ti-versions"></i>
-                        產品變體管理
+                        產品方案管理
                     </h2>
                     <div class="text-muted mt-1">
-                        查看和管理所有產品變體
+                        查看和管理所有產品方案
                     </div>
                 </div>
                 <div class="col-auto ms-auto d-print-none">
@@ -148,15 +148,18 @@
                         <a href="{% url 'products:product_list' %}" class="btn btn-outline-secondary">
                             <i class="ti ti-box"></i> 產品列表
                         </a>
+                        {% if is_headquarter %}
                         <a href="{% url 'products:variant_create' %}?product_id={{ product.id }}" 
                             class="btn btn-primary">
-                            <i class="ti ti-plus"></i> 新增變體
+                            <i class="ti ti-plus"></i> 新增方案
                         </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
 
+        {% if is_headquarter %}
         <!-- 統計卡片 -->
         <div class="row">
             <div class="col-12">
@@ -165,7 +168,7 @@
                         <div class="col-md-3 col-6">
                             <div class="stats-item">
                                 <h3>{{ total_variants|intcomma }}</h3>
-                                <p>總變體數</p>
+                                <p>總方案數</p>
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
@@ -174,20 +177,6 @@
                                 <p>上架中</p>
                             </div>
                         </div>
-                        {% if is_agent %}
-                        <div class="col-md-3 col-6">
-                            <div class="stats-item">
-                                <h3>{{ agent_priced_variants|intcomma }}</h3>
-                                <p>已設定經銷價</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <div class="stats-item">
-                                <h3>{{ total_variants|add:"-"|add:agent_priced_variants|intcomma }}</h3>
-                                <p>待設定經銷價</p>
-                            </div>
-                        </div>
-                        {% else %}
                         <div class="col-md-3 col-6">
                             <div class="stats-item">
                                 <h3>{{ inactive_variants|intcomma }}</h3>
@@ -196,15 +185,15 @@
                         </div>
                         <div class="col-md-3 col-6">
                             <div class="stats-item">
-                                <h3>{{ total_variants|intcomma }}</h3>
-                                <p>全部變體</p>
+                                <h3>{{ archived_variants|intcomma }}</h3>
+                                <p>已封存</p>
                             </div>
                         </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <!-- 產品類型統計 -->
         <div class="row">
@@ -227,11 +216,14 @@
                                     <i class="ti ti-credit-card"></i> 充值卡: {{ rechargeable_count }}
                                 </div>
                             </div>
+                            <!-- 只有總公司能看到 PHYSICAL -->
+                            {% if is_headquarter %}
                             <div class="col-md-3 col-6">
                                 <div class="type-badge type-physical">
                                     <i class="ti ti-id-badge-2"></i> 成品卡: {{ physical_count }}
                                 </div>
                             </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -255,7 +247,7 @@
                                    class="form-control" 
                                    name="q" 
                                    value="{{ search_query }}" 
-                                   placeholder="變體名稱、產品代碼、SKU...">
+                                   placeholder="方案名稱、產品代碼、SKU...">
                             <button class="btn btn-primary" type="submit">
                                 <i class="ti ti-search"></i> 搜尋
                             </button>
@@ -292,8 +284,16 @@
 
                     <!-- 狀態篩選 -->
                     <div class="col-md-2">
-                        <label class="form-label">狀態</label>
-                        <select class="form-select" name="status" onchange="this.form.submit()">
+                        <label class="form-label">
+                            狀態
+                            {% if not is_headquarter %}
+                            <span class="badge bg-info-lt ms-1" title="您只能查看上架狀態">
+                                <i class="ti ti-lock"></i>
+                            </span>
+                            {% endif %}
+                        </label>
+                        <select class="form-select" name="status" onchange="this.form.submit()"
+                                {% if not is_headquarter %}disabled{% endif %}>
                             <option value="">-- 全部 --</option>
                             {% for value, label in variant_statuses %}
                             <option value="{{ value }}" 
@@ -302,6 +302,10 @@
                             </option>
                             {% endfor %}
                         </select>
+                        {% if not is_headquarter %}
+                        <!-- 隱藏欄位保持 ACTIVE 狀態 -->
+                        <input type="hidden" name="status" value="ACTIVE">
+                        {% endif %}
                     </div>
 
                     <!-- 清除篩選 -->
@@ -315,11 +319,11 @@
             </div>
         </div>
 
-        <!-- 變體列表 -->
+        <!-- 方案列表 -->
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">
-                    變體列表
+                    方案列表
                     <span class="badge bg-primary ms-2">{{ page_obj.paginator.count|intcomma }} 個</span>
                 </h3>
             </div>
@@ -329,7 +333,7 @@
                 <table class="table table-vcenter card-table table-striped">
                     <thead>
                         <tr>
-                            <th>產品 / 變體</th>
+                            <th>方案 / 產品</th>
                             <th>規格</th>
                             <th>類型</th>
                             <th>狀態</th>
@@ -349,14 +353,21 @@
                             <!-- 產品 / 變體 -->
                             <td>
                                 <div>
-                                    <div class="fw-bold">{{ variant.product.name }}</div>
+                                    <div class="fw-bold">{{ variant.name }}</div>
                                     <div class="text-muted small">
-                                        <i class="ti ti-versions"></i> {{ variant.name }}
+                                        {{ variant.product.name }} 
                                     </div>
+                                    {% if variant.sku %}
+                                    <div class="text-muted small">
+                                        <small class="badge bg-dark">SKU</small> {{ variant.sku }}
+                                    </div>
+                                    {% endif %}
+                                    {% if is_headquarter %}
                                     {% if variant.product_code %}
                                     <div class="text-muted small">
-                                        <i class="ti ti-barcode"></i> {{ variant.product_code }}
+                                        <small class="badge bg-warning">產品代碼</small> {{ variant.product_code }}  
                                     </div>
+                                    {% endif %}
                                     {% endif %}
                                 </div>
                             </td>
@@ -364,8 +375,8 @@
                             <!-- 規格 -->
                             <td>
                                 <div class="text-muted small">
-                                    <div><i class="ti ti-clock"></i> {{ variant.days }}</div>
-                                    <div><i class="ti ti-database"></i> {{ variant.data_amount }}</div>
+                                    <div>{{ variant.days }}</div>
+                                    <div>{{ variant.data_amount }}</div>
                                 </div>
                             </td>
 
@@ -377,13 +388,16 @@
                             </td>
 
                             <!-- 狀態 -->
+
                             <td>
                                 {% if variant.status == 'ACTIVE' %}
                                 <span class="badge bg-active">上架</span>
                                 {% elif variant.status == 'INACTIVE' %}
                                 <span class="badge bg-danger">下架</span>
-                                {% else %}
+                                {% elif variant.status == 'ARCHIVED' %}
                                 <span class="badge bg-dark">封存</span>
+                                {% else %}
+                                <span class="badge bg-dark">{{ variant.get_status_display }}</span>
                                 {% endif %}
                             </td>
 

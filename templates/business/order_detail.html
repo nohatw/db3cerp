@@ -397,16 +397,13 @@
                         <thead>
                             <tr>
                                 <th>產品名稱</th>
-                                <th>產品代碼</th>
+                                <th>SKU</th>
                                 <th style="text-align: center;">狀態</th>
                                 <th style="text-align: center; width: 120px;">數量</th>
                                 <th style="text-align: right;">單價</th>
                                 <th style="text-align: right;">小計</th>
-                                {% if is_headquarter and order.status == 'HOLDING' %}
+                                
                                 <th style="text-align: center; width: 100px;">操作</th>
-                                {% elif is_headquarter and order.status in 'PENDING,PAID,WAIT' %}
-                                <th style="text-align: center; width: 100px;">操作</th>
-                                {% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -429,7 +426,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <code>{{ item.product_code }}</code>
+                                    <code>{{ item.variant.sku }}</code>
                                 </td>
                                 <td style="text-align: center;">
                                     {% if item.status == 'NORMAL' %}
